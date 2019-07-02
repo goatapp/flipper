@@ -12,10 +12,33 @@
       <input type="text" name="value" size="30" placeholder="ie: search, new_pricing, etc." autofocus class="form-control mr-2 mb-2 mb-md-0">
       <input type="submit" value="Add Feature" class="btn btn-light">
     </form>
-    <p class="text-muted">
-      Recommended naming conventions: lower case, <a href="https://en.wikipedia.org/wiki/Snake_case">snake case</a>, underscores over dashes.
-      <strong>Good</strong>: foo_bar, foo.
-      <strong>Bad</strong>: FooBar, Foo Bar, foo bar, foo-bar.
+
+    <p class="text-muted mt-5">
+      Recommended naming conventions: <em>temp?_platform_area_feature</em>
     </p>
+    <ul class="text-muted">
+      <li>
+        <strong>temp?</strong>:
+        Feature flags that are prefixed with temp_ are considered temporary.
+        These flags have an expiration date in which it will be removed.
+        Flags that do not have a prefix of temp_ are considered permanent
+        and have no expiration date.
+      </li>
+      <li>
+        <strong>platform</strong>:
+        Indicates the platform in which this feature flag is used, e.g. web, ios, android, etc.
+      </li>
+      <li>
+        <strong>area</strong>:
+        Indicates the area of business that this flag affects, e.g. checkout, onfeet, editorial, etc.
+      </li>
+      <li>
+        <strong>feature</strong>:
+        A short identifier to convey what the flag is intended to control, e.g. afterpay, sales_tax, nav_2, etc.
+      </li>
+    </ul>
+    <em class="text-muted">
+      Ex: web_checkout_afterpay (permanent) temp_web_header_nav2 (temporary)
+    </em>
   </div>
 </div>
