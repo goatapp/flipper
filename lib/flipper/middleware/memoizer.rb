@@ -32,12 +32,18 @@ module Flipper
       end
 
       def call(env)
-        request = Rack::Request.new(env)
+        Honeycomb.start_span(name: 'flipper_memoizer') do |span|
+          request = Rack::Request.new(env)
 
-        if skip_memoize?(request)
-          @app.call(env)
-        else
-          memoized_call(env)
+          if skip_memoize?(request)
+            span.add_field('flipper_memoizer_skip', true)
+
+            @app.call(env)
+          else
+            span.add_field('flipper_memoizer_skip', false)
+
+            memoized_call(env)
+          end
         end
       end
 
