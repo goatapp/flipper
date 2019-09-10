@@ -19,6 +19,8 @@ gem 'rubocop', '~> 0.45.0'
 gem 'rubocop-rspec', '= 1.5.1'
 gem 'webmock', '~> 2.0'
 
+gem 'honeycomb-beeline', '~> 1.0' # https://github.com/bugsnag/bugsnag-ruby/issues/556
+
 # for active support tests in test/ and only needed for ruby 2.2.x
 gem 'test-unit', '~> 3.0'
 
