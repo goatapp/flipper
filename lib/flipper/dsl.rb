@@ -1,4 +1,5 @@
 require 'forwardable'
+require 'pry'
 
 module Flipper
   class DSL
@@ -31,7 +32,11 @@ module Flipper
     #
     # Returns true if feature is enabled, false if not.
     def enabled?(name, *args)
-      feature(name).enabled?(*args)
+      Honeycomb.start_span(name: 'flipper_is_enabled') do |span|
+        span.add_field('flipper_feature_name', name)
+
+        feature(name).enabled?(*args)
+      end
     end
 
     # Public: Enable a feature.
@@ -188,17 +193,23 @@ module Flipper
     #
     # Returns an Array of Flipper::Feature.
     def preload(names)
-      features = names.map { |name| feature(name) }
-      @adapter.get_multi(features)
-      features
+      Honeycomb.start_span(name: 'flipper_preload') do |span|
+        span.add_field('flipper_feature_names', names)
+
+        features = names.map { |name| feature(name) }
+        @adapter.get_multi(features)
+        features
+      end
     end
 
     # Public: Preload all the adapters features.
     #
     # Returns an Array of Flipper::Feature.
     def preload_all
-      keys = @adapter.get_all.keys
-      keys.map { |key| feature(key) }
+      Honeycomb.start_span(name: 'flipper_preload_all') do |span|
+        keys = @adapter.get_all.keys
+        keys.map { |key| feature(key) }
+      end
     end
 
     # Public: Shortcut access to a feature instance by name.
