@@ -67,58 +67,70 @@ module Flipper
 
       # Public
       def get(feature)
-        if memoizing?
-          cache.fetch(key_for(feature.key)) { cache[key_for(feature.key)] = @adapter.get(feature) }
-        else
-          @adapter.get(feature)
+        Honeycomb.start_span(name: 'flipper_memoizable_get') do |span|
+          span.add_field('flipper_memoizing', memoizing?)
+
+          if memoizing?
+            cache.fetch(key_for(feature.key)) { cache[key_for(feature.key)] = @adapter.get(feature) }
+          else
+            @adapter.get(feature)
+          end
         end
       end
 
       # Public
       def get_multi(features)
-        if memoizing?
-          uncached_features = features.reject { |feature| cache[key_for(feature.key)] }
+        Honeycomb.start_span(name: 'flipper_memoizable_get_multi') do |span|
+          span.add_field('flipper_memoizing', memoizing?)
 
-          if uncached_features.any?
-            response = @adapter.get_multi(uncached_features)
-            response.each do |key, hash|
-              cache[key_for(key)] = hash
+          if memoizing?
+            uncached_features = features.reject { |feature| cache[key_for(feature.key)] }
+
+            if uncached_features.any?
+              response = @adapter.get_multi(uncached_features)
+              response.each do |key, hash|
+                cache[key_for(key)] = hash
+              end
             end
-          end
 
-          result = {}
-          features.each do |feature|
-            result[feature.key] = cache[key_for(feature.key)]
+            result = {}
+            features.each do |feature|
+              result[feature.key] = cache[key_for(feature.key)]
+            end
+            result
+          else
+            @adapter.get_multi(features)
           end
-          result
-        else
-          @adapter.get_multi(features)
         end
       end
 
       def get_all
-        if memoizing?
-          response = nil
-          if cache[GetAllKey]
-            response = {}
-            cache[FeaturesKey].each do |key|
-              response[key] = cache[key_for(key)]
-            end
-          else
-            response = @adapter.get_all
-            response.each do |key, value|
-              cache[key_for(key)] = value
-            end
-            cache[FeaturesKey] = response.keys.to_set
-            cache[GetAllKey] = true
-          end
+        Honeycomb.start_span(name: 'flipper_memoizable_get_all') do |span|
+          span.add_field('flipper_memoizing', memoizing?)
 
-          # Ensures that looking up other features that do not exist doesn't
-          # result in N+1 adapter calls.
-          response.default_proc = ->(memo, key) { memo[key] = default_config }
-          response
-        else
-          @adapter.get_all
+          if memoizing?
+            response = nil
+            if cache[GetAllKey]
+              response = {}
+              cache[FeaturesKey].each do |key|
+                response[key] = cache[key_for(key)]
+              end
+            else
+              response = @adapter.get_all
+              response.each do |key, value|
+                cache[key_for(key)] = value
+              end
+              cache[FeaturesKey] = response.keys.to_set
+              cache[GetAllKey] = true
+            end
+
+            # Ensures that looking up other features that do not exist doesn't
+            # result in N+1 adapter calls.
+            response.default_proc = ->(memo, key) { memo[key] = default_config }
+            response
+          else
+            @adapter.get_all
+          end
         end
       end
 
