@@ -68,11 +68,11 @@ module Flipper
       # Public
       def get(feature)
         Honeycomb.start_span(name: 'flipper_memoizable_get') do |span|
-          span.add_field('flipper_memoizing', memoizing?)
 
           if memoizing?
             cache.fetch(key_for(feature.key)) { cache[key_for(feature.key)] = @adapter.get(feature) }
           else
+            span.add_field_to_trace('flipper_memoizable_get_miss', true)
             @adapter.get(feature)
           end
         end
@@ -81,8 +81,6 @@ module Flipper
       # Public
       def get_multi(features)
         Honeycomb.start_span(name: 'flipper_memoizable_get_multi') do |span|
-          span.add_field('flipper_memoizing', memoizing?)
-
           if memoizing?
             uncached_features = features.reject { |feature| cache[key_for(feature.key)] }
 
@@ -99,6 +97,7 @@ module Flipper
             end
             result
           else
+            span.add_field_to_trace('flipper_memoizable_get_multi_miss', true)
             @adapter.get_multi(features)
           end
         end
@@ -106,8 +105,6 @@ module Flipper
 
       def get_all
         Honeycomb.start_span(name: 'flipper_memoizable_get_all') do |span|
-          span.add_field('flipper_memoizing', memoizing?)
-
           if memoizing?
             response = nil
             if cache[GetAllKey]
@@ -129,6 +126,7 @@ module Flipper
             response.default_proc = ->(memo, key) { memo[key] = default_config }
             response
           else
+            span.add_field_to_trace('flipper_memoizable_get_all_miss', true)
             @adapter.get_all
           end
         end
