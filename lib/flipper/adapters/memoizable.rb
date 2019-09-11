@@ -72,7 +72,7 @@ module Flipper
           if memoizing?
             cache.fetch(key_for(feature.key)) { cache[key_for(feature.key)] = @adapter.get(feature) }
           else
-            span.add_field_to_trace('flipper_memoizable_get_miss', true)
+            Honeycomb.add_field_to_trace('flipper_memoizable_get_miss', true)
             @adapter.get(feature)
           end
         end
@@ -97,7 +97,7 @@ module Flipper
             end
             result
           else
-            span.add_field_to_trace('flipper_memoizable_get_multi_miss', true)
+            Honeycomb.add_field_to_trace('flipper_memoizable_get_multi_miss', true)
             @adapter.get_multi(features)
           end
         end
@@ -126,7 +126,7 @@ module Flipper
             response.default_proc = ->(memo, key) { memo[key] = default_config }
             response
           else
-            span.add_field_to_trace('flipper_memoizable_get_all_miss', true)
+            Honeycomb.add_field_to_trace('flipper_memoizable_get_all_miss', true)
             @adapter.get_all
           end
         end

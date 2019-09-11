@@ -35,7 +35,7 @@ module Flipper
         Honeycomb.start_span(name: 'flipper_memoizer') do |span|
           request = Rack::Request.new(env)
 
-          span.add_field_to_trace('cmax_foo', 123)
+          Honeycomb.add_field_to_trace('cmax_foo', 123)
 
           if skip_memoize?(request)
             span.add_field('flipper_memoizer_skip', true)
