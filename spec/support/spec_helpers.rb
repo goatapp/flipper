@@ -1,6 +1,9 @@
 require 'ice_age'
 require 'json'
 require 'rack/test'
+# Rack 3 moved Rack::Session::Cookie into the rack-session gem; the require
+# path is the same for both, so this works on rack 2 and rack 3.
+require 'rack/session/cookie'
 
 module SpecHelpers
   def self.included(base)
@@ -10,7 +13,8 @@ module SpecHelpers
 
   def build_app(flipper, options = {})
     Flipper::UI.app(flipper, options) do |builder|
-      builder.use Rack::Session::Cookie, secret: 'test'
+      # Rack 3 requires secrets to be at least 64 bytes
+      builder.use Rack::Session::Cookie, secret: 'x' * 64
     end
   end
 

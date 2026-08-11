@@ -108,7 +108,7 @@ module Flipper
         @flipper = flipper
         @request = request
         @code = 200
-        @headers = { 'Content-Type' => 'text/plain' }
+        @headers = { 'content-type' => 'text/plain' }
         @breadcrumbs =
           if Flipper::UI.configuration.application_breadcrumb_href
             [Breadcrumb.new('App', Flipper::UI.configuration.application_breadcrumb_href)]
@@ -201,8 +201,10 @@ module Flipper
       #
       # name - The String name of the header.
       # value - The value of the header.
+      # Rack 3 requires lowercase response header keys. Downcasing here covers
+      # every caller, including view_response, json_response and redirect_to.
       def header(name, value)
-        @headers[name] = value
+        @headers[name.downcase] = value
       end
 
       class Breadcrumb
