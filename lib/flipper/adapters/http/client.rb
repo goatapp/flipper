@@ -14,6 +14,10 @@ module Flipper
 
         HTTPS_SCHEME = "https".freeze
 
+        attr_reader :uri, :headers
+        attr_reader :basic_auth_username, :basic_auth_password
+        attr_reader :read_timeout, :open_timeout, :write_timeout, :max_retries, :debug_output
+
         def initialize(options = {})
           @uri = URI(options.fetch(:url))
           @headers = DEFAULT_HEADERS.merge(options[:headers] || {})
@@ -21,6 +25,8 @@ module Flipper
           @basic_auth_password = options[:basic_auth_password]
           @read_timeout = options[:read_timeout]
           @open_timeout = options[:open_timeout]
+          @write_timeout = options[:write_timeout]
+          @max_retries = options.key?(:max_retries) ? options[:max_retries] : 0
           @debug_output = options[:debug_output]
         end
 
@@ -57,6 +63,8 @@ module Flipper
           http = Net::HTTP.new(uri.host, uri.port)
           http.read_timeout = @read_timeout if @read_timeout
           http.open_timeout = @open_timeout if @open_timeout
+          http.max_retries = @max_retries if @max_retries
+          http.write_timeout = @write_timeout if @write_timeout
           http.set_debug_output(@debug_output) if @debug_output
 
           if uri.scheme == HTTPS_SCHEME
@@ -68,9 +76,19 @@ module Flipper
         end
 
         def build_request(http_method, uri, headers, options)
+          request_headers = {
+            "Client-Language" => "ruby",
+            "Client-Language-Version" => "#{RUBY_VERSION} p#{RUBY_PATCHLEVEL} (#{RUBY_RELEASE_DATE})",
+            "Client-Platform" => RUBY_PLATFORM,
+            "Client-Engine" => defined?(RUBY_ENGINE) ? RUBY_ENGINE : "",
+            "Client-Pid" => Process.pid.to_s,
+            "Client-Thread" => Thread.current.object_id.to_s,
+            "Client-Hostname" => Socket.gethostname,
+          }.merge(headers)
+
           body = options[:body]
           request = http_method.new(uri.request_uri)
-          request.initialize_http_header(headers) if headers
+          request.initialize_http_header(request_headers)
           request.body = body if body
 
           if @basic_auth_username && @basic_auth_password

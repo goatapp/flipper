@@ -1,6 +1,5 @@
 # Requires the following methods:
 # * subject - The instance of the adapter
-# rubocop:disable Metrics/BlockLength
 RSpec.shared_examples_for 'a flipper adapter' do
   let(:flipper) { Flipper.new(subject) }
   let(:feature) { flipper[:stats] }
@@ -34,7 +33,15 @@ RSpec.shared_examples_for 'a flipper adapter' do
     expect(subject.class.ancestors).to include(Flipper::Adapter)
   end
 
+  it 'knows how to get adapter from source' do
+    adapter = Flipper::Adapters::Memory.new
+    flipper = Flipper.new(adapter)
+    expect(subject.class.from(adapter).class.ancestors).to include(Flipper::Adapter)
+    expect(subject.class.from(flipper).class.ancestors).to include(Flipper::Adapter)
+  end
+
   it 'returns correct default values for the gates if none are enabled' do
+    expect(subject.get(feature)).to eq(subject.class.default_config)
     expect(subject.get(feature)).to eq(subject.default_config)
   end
 
@@ -289,5 +296,35 @@ RSpec.shared_examples_for 'a flipper adapter' do
   it 'can double enable without error' do
     expect(subject.enable(feature, boolean_gate, flipper.boolean)).to eq(true)
     expect(subject.enable(feature, boolean_gate, flipper.boolean)).to eq(true)
+  end
+
+  it 'can get_all features when there are none' do
+    expect(subject.features).to eq(Set.new)
+    expect(subject.get_all).to eq({})
+  end
+
+  it 'clears other gate values on enable' do
+    actor = Flipper::Actor.new('Flipper::Actor;22')
+    subject.enable(feature, actors_gate, flipper.actors(25))
+    subject.enable(feature, time_gate, flipper.time(25))
+    subject.enable(feature, group_gate, flipper.group(:admins))
+    subject.enable(feature, actor_gate, flipper.actor(actor))
+    subject.enable(feature, boolean_gate, flipper.boolean(true))
+    expect(subject.get(feature)).to eq(subject.default_config.merge(boolean: "true"))
+  end
+
+  it 'can import and export' do
+    adapter = Flipper::Adapters::Memory.new
+    source_flipper = Flipper.new(adapter)
+    source_flipper.enable(:stats)
+    export = adapter.export
+
+    # some adapters cannot import so if they return false lets assert it
+    # didn't happen
+    if subject.import(export)
+      expect(flipper[:stats]).to be_enabled
+    else
+      expect(flipper[:stats]).not_to be_enabled
+    end
   end
 end

@@ -1,10 +1,7 @@
-require File.expand_path('../example_setup', __FILE__)
-
+require 'bundler/setup'
 require 'flipper'
 
-adapter = Flipper::Adapters::Memory.new
-flipper = Flipper.new(adapter)
-stats = flipper[:stats]
+stats = Flipper[:stats]
 
 # Register group
 Flipper.register(:enabled_team_member) do |actor, context|
@@ -15,19 +12,12 @@ Flipper.register(:enabled_team_member) do |actor, context|
 end
 
 # Some class that represents actor that will be trying to do something
-class User
-  attr_reader :id
-
-  def initialize(id)
-    @id = id
-  end
-
-  def flipper_id
-    "User;#{@id}"
-  end
+class User < Struct.new(:id)
+  include Flipper::Identifier
 end
 
 class Team
+  include Flipper::Identifier
   attr_reader :name
 
   def self.all
@@ -50,10 +40,6 @@ class Team
 
   def member?(actor)
     @members.map(&:id).include?(actor.id)
-  end
-
-  def flipper_id
-    "Team:#{@name}"
   end
 end
 

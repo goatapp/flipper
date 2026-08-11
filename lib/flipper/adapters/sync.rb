@@ -17,7 +17,7 @@ module Flipper
       # Public: Build a new sync instance.
       #
       # local - The local flipper adapter that should serve reads.
-      # remote - The remote flipper adpater that should serve writes and update
+      # remote - The remote flipper adapter that should serve writes and update
       #          the local on an interval.
       # interval - The Float or Integer number of seconds between syncs from
       # remote to local. Default value is set in IntervalSynchronizer.
@@ -34,62 +34,56 @@ module Flipper
           synchronizer = Synchronizer.new(@local, @remote, sync_options)
           IntervalSynchronizer.new(synchronizer, interval: options[:interval])
         end
-        sync
+        synchronize
       end
 
       def features
-        sync
+        synchronize
         @local.features
       end
 
       def get(feature)
-        sync
+        synchronize
         @local.get(feature)
       end
 
       def get_multi(features)
-        sync
+        synchronize
         @local.get_multi(features)
       end
 
       def get_all
-        sync
+        synchronize
         @local.get_all
       end
 
       def add(feature)
-        result = @remote.add(feature)
-        @local.add(feature)
-        result
+        @remote.add(feature).tap { @local.add(feature) }
       end
 
       def remove(feature)
-        result = @remote.remove(feature)
-        @local.remove(feature)
-        result
+        @remote.remove(feature).tap { @local.remove(feature) }
       end
 
       def clear(feature)
-        result = @remote.clear(feature)
-        @local.clear(feature)
-        result
+        @remote.clear(feature).tap { @local.clear(feature) }
       end
 
       def enable(feature, gate, thing)
-        result = @remote.enable(feature, gate, thing)
-        @local.enable(feature, gate, thing)
-        result
+        @remote.enable(feature, gate, thing).tap do
+          @local.enable(feature, gate, thing)
+        end
       end
 
       def disable(feature, gate, thing)
-        result = @remote.disable(feature, gate, thing)
-        @local.disable(feature, gate, thing)
-        result
+        @remote.disable(feature, gate, thing).tap do
+          @local.disable(feature, gate, thing)
+        end
       end
 
       private
 
-      def sync
+      def synchronize
         @synchronizer.call
       end
     end

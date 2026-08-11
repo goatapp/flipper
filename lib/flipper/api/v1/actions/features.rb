@@ -10,23 +10,29 @@ module Flipper
 
           def get
             keys = params['keys']
-            features = if keys
-                         names = keys.split(',')
-                         if names.empty?
-                           []
-                         else
-                           existing_feature_names = names.keep_if do |feature_name|
-                             feature_exists?(feature_name)
-                           end
+            exclude_gates = params['exclude_gates']&.downcase == "true"
+            exclude_gate_names = params['exclude_gate_names']&.downcase == "true"
 
-                           flipper.preload(existing_feature_names)
-                         end
-                       else
-                         flipper.features
-                       end
+            features = if keys
+              names = keys.split(',')
+              if names.empty?
+                []
+              else
+                existing_feature_names = names.keep_if do |feature_name|
+                  feature_exists?(feature_name)
+                end
+
+                flipper.preload(existing_feature_names)
+              end
+            else
+              flipper.features
+            end
 
             decorated_features = features.map do |feature|
-              Decorators::Feature.new(feature).as_json
+              Decorators::Feature.new(feature).as_json(
+                exclude_gates: exclude_gates,
+                exclude_gate_names: exclude_gate_names
+              )
             end
 
             json_response(features: decorated_features)

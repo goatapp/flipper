@@ -1,7 +1,12 @@
 require 'logger'
-require 'helper'
 require 'flipper/adapters/instrumented'
 require 'flipper/instrumentation/log_subscriber'
+
+begin
+  require 'active_support/isolated_execution_state'
+rescue LoadError
+  # ActiveSupport::IsolatedExecutionState is only available in Rails 5.2+
+end
 
 RSpec.describe Flipper::Instrumentation::LogSubscriber do
   let(:adapter) do
@@ -13,8 +18,8 @@ RSpec.describe Flipper::Instrumentation::LogSubscriber do
   end
 
   before do
-    Flipper.register(:admins) do |thing|
-      thing.respond_to?(:admin?) && thing.admin?
+    Flipper.register(:admins) do |actor|
+      actor.respond_to?(:admin?) && actor.admin?
     end
 
     @io = StringIO.new
@@ -27,6 +32,10 @@ RSpec.describe Flipper::Instrumentation::LogSubscriber do
     described_class.logger = nil
   end
 
+  after(:all) do
+    ActiveSupport::Notifications.unsubscribe("flipper")
+  end
+
   let(:log) { @io.string }
 
   context 'feature enabled checks' do
@@ -37,7 +46,7 @@ RSpec.describe Flipper::Instrumentation::LogSubscriber do
 
     it 'logs feature calls with result after operation' do
       feature_line = find_line('Flipper feature(search) enabled? false')
-      expect(feature_line).to include('[ thing=nil ]')
+      expect(feature_line).to include('[ actors=nil ]')
     end
 
     it 'logs adapter calls' do
@@ -47,7 +56,7 @@ RSpec.describe Flipper::Instrumentation::LogSubscriber do
     end
   end
 
-  context 'feature enabled checks with a thing' do
+  context 'feature enabled checks with an actor' do
     let(:user) { Flipper::Types::Actor.new(Flipper::Actor.new('1')) }
 
     before do
@@ -55,7 +64,7 @@ RSpec.describe Flipper::Instrumentation::LogSubscriber do
       flipper[:search].enabled?(user)
     end
 
-    it 'logs thing for feature' do
+    it 'logs actors for feature' do
       feature_line = find_line('Flipper feature(search) enabled?')
       expect(feature_line).to include(user.inspect)
     end

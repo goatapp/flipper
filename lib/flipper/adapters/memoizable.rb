@@ -5,7 +5,7 @@ module Flipper
     # Internal: Adapter that wraps another adapter with the ability to memoize
     # adapter calls in memory. Used by flipper dsl and the memoizer middleware
     # to make it possible to memoize adapter calls for the duration of a request.
-    class Memoizable < SimpleDelegator
+    class Memoizable
       include ::Flipper::Adapter
 
       FeaturesKey = :flipper_features
@@ -27,7 +27,6 @@ module Flipper
 
       # Public
       def initialize(adapter, cache = nil)
-        super(adapter)
         @adapter = adapter
         @name = :memoizable
         @cache = cache || {}
@@ -45,24 +44,20 @@ module Flipper
 
       # Public
       def add(feature)
-        result = @adapter.add(feature)
-        expire_features_set
-        result
+        @adapter.add(feature).tap { expire_features_set }
       end
 
       # Public
       def remove(feature)
-        result = @adapter.remove(feature)
-        expire_features_set
-        expire_feature(feature)
-        result
+        @adapter.remove(feature).tap do
+          expire_features_set
+          expire_feature(feature)
+        end
       end
 
       # Public
       def clear(feature)
-        result = @adapter.clear(feature)
-        expire_feature(feature)
-        result
+        @adapter.clear(feature).tap { expire_feature(feature) }
       end
 
       # Public
@@ -124,16 +119,20 @@ module Flipper
 
       # Public
       def enable(feature, gate, thing)
-        result = @adapter.enable(feature, gate, thing)
-        expire_feature(feature)
-        result
+        @adapter.enable(feature, gate, thing).tap { expire_feature(feature) }
       end
 
       # Public
       def disable(feature, gate, thing)
-        result = @adapter.disable(feature, gate, thing)
-        expire_feature(feature)
-        result
+        @adapter.disable(feature, gate, thing).tap { expire_feature(feature) }
+      end
+
+      def import(source)
+        @adapter.import(source).tap { cache.clear if memoizing? }
+      end
+
+      def export(format: :json, version: 1)
+        @adapter.export(format: format, version: version)
       end
 
       # Internal: Turns local caching on/off.
@@ -147,6 +146,16 @@ module Flipper
       # Internal: Returns true for using local cache, false for not.
       def memoizing?
         !!@memoize
+      end
+
+      if RUBY_VERSION >= '3.0'
+        def method_missing(name, *args, **kwargs, &block)
+          @adapter.send name, *args, **kwargs, &block
+        end
+      else
+        def method_missing(name, *args, &block)
+          @adapter.send name, *args, &block
+        end
       end
 
       private

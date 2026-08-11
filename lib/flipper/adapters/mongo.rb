@@ -13,6 +13,9 @@ module Flipper
       # Public: The name of the adapter.
       attr_reader :name
 
+      # Public: The name of the collection storing the feature data.
+      attr_reader :collection
+
       def initialize(collection)
         @collection = collection
         @name = :mongo
@@ -68,7 +71,12 @@ module Flipper
       # Returns true.
       def enable(feature, gate, thing)
         case gate.data_type
-        when :boolean, :integer
+        when :boolean
+          clear(feature)
+          update feature.key, '$set' => {
+            gate.key.to_s => thing.value.to_s,
+          }
+        when :integer
           update feature.key, '$set' => {
             gate.key.to_s => thing.value.to_s,
           }
@@ -166,5 +174,18 @@ module Flipper
         result
       end
     end
+  end
+end
+
+Flipper.configure do |config|
+  config.adapter do
+    url = ENV["FLIPPER_MONGO_URL"] || ENV["MONGO_URL"]
+    collection = ENV["FLIPPER_MONGO_COLLECTION"] || "flipper"
+
+    unless url
+      raise ArgumentError, "The MONGO_URL environment variable must be set. For example: mongodb://127.0.0.1:27017/flipper"
+    end
+
+    Flipper::Adapters::Mongo.new(Mongo::Client.new(url)[collection])
   end
 end

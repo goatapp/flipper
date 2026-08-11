@@ -10,9 +10,12 @@ module Flipper
         route %r{\A/features/(?<feature_name>.*)\Z}
 
         def get
-          @feature = Decorators::Feature.new(flipper[feature_name])
+          flipper_feature = flipper[feature_name]
+          @feature = Decorators::Feature.new(flipper_feature)
+          descriptions = Flipper::UI.configuration.descriptions_source.call([flipper_feature.key])
+          @feature.description = descriptions[@feature.key]
           @page_title = "#{@feature.key} // Features"
-          @percentages = [0, 1, 5, 10, 15, 25, 50, 75, 100]
+          @percentages = [0, 1, 5, 10, 25, 50, 100]
 
           breadcrumb 'Home', '/'
           breadcrumb 'Features', '/features'
@@ -22,6 +25,8 @@ module Flipper
         end
 
         def delete
+          read_only if Flipper::UI.configuration.read_only
+
           unless Flipper::UI.configuration.feature_removal_enabled
             status 403
 

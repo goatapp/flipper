@@ -68,7 +68,7 @@ module Flipper
         @flipper = flipper
         @request = request
         @code = 200
-        @headers = { 'Content-Type' => Api::CONTENT_TYPE }
+        @headers = { 'content-type' => Api::CONTENT_TYPE }
       end
 
       # Public: Runs the request method for the provided request.
@@ -141,7 +141,7 @@ module Flipper
       # name - The String name of the header.
       # value - The value of the header.
       def header(name, value)
-        @headers[name] = value
+        @headers[name.downcase] = value
       end
 
       private

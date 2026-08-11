@@ -1,5 +1,3 @@
-require 'helper'
-
 RSpec.describe Flipper::Gates::Boolean do
   let(:feature_name) { :search }
 
@@ -11,7 +9,7 @@ RSpec.describe Flipper::Gates::Boolean do
     Flipper::FeatureCheckContext.new(
       feature_name: feature_name,
       values: Flipper::GateValues.new(boolean: bool),
-      thing: Flipper::Types::Actor.new(Flipper::Actor.new(1))
+      actors: [Flipper::Types::Actor.new(Flipper::Actor.new('1'))]
     )
   end
 

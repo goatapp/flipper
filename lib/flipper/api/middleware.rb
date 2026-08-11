@@ -23,6 +23,7 @@ module Flipper
         @action_collection.add Api::V1::Actions::Actors
         @action_collection.add Api::V1::Actions::Feature
         @action_collection.add Api::V1::Actions::Features
+        @action_collection.add Api::V1::Actions::Import
       end
 
       def call(env)
@@ -32,10 +33,11 @@ module Flipper
       def call!(env)
         request = Rack::Request.new(env)
         action_class = @action_collection.action_for_request(request)
+
         if action_class.nil?
           @app.call(env)
         else
-          flipper = env.fetch(@env_key)
+          flipper = env.fetch(@env_key) { Flipper }
           action_class.run(flipper, request)
         end
       end

@@ -1,14 +1,14 @@
-require 'rack/file'
+require 'rack/files'
 require 'flipper/ui/action'
 
 module Flipper
   module UI
     module Actions
       class File < UI::Action
-        route %r{(images|css|js|octicons|fonts)/.*\Z}
+        route %r{(images|css|js)/.*\Z}
 
         def get
-          Rack::File.new(public_path).call(request.env)
+          Rack::Files.new(public_path).call(request.env)
         end
       end
     end

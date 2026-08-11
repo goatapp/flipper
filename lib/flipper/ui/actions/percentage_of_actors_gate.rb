@@ -10,13 +10,15 @@ module Flipper
         route %r{\A/features/(?<feature_name>.*)/percentage_of_actors/?\Z}
 
         def post
+          read_only if Flipper::UI.configuration.read_only
+
           feature = flipper[feature_name]
           @feature = Decorators::Feature.new(feature)
 
           begin
             feature.enable_percentage_of_actors params['value']
           rescue ArgumentError => exception
-            error = Rack::Utils.escape("Invalid percentage of actors value: #{exception.message}")
+            error = "Invalid percentage of actors value: #{exception.message}"
             redirect_to("/features/#{@feature.key}?error=#{error}")
           end
 

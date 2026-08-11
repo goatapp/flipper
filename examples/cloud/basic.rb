@@ -1,25 +1,21 @@
 # Usage (from the repo root):
-#   env TOKEN=<token> bundle exec ruby examples/cloud/basic.rb
-require 'pathname'
-require 'logger'
-root_path = Pathname(__FILE__).dirname.join('..').expand_path
-lib_path  = root_path.join('lib')
-$:.unshift(lib_path)
+# env FLIPPER_CLOUD_TOKEN=<token> bundle exec ruby examples/cloud/basic.rb
 
+require_relative "./cloud_setup"
+require 'bundler/setup'
 require 'flipper/cloud'
-flipper = Flipper::Cloud.new(ENV.fetch('TOKEN'))
 
-flipper[:stats].enable
+Flipper[:stats].enable
 
-if flipper[:stats].enabled?
+if Flipper[:stats].enabled?
   puts 'Enabled!'
 else
   puts 'Disabled!'
 end
 
-flipper[:stats].disable
+Flipper[:stats].disable
 
-if flipper[:stats].enabled?
+if Flipper[:stats].enabled?
   puts 'Enabled!'
 else
   puts 'Disabled!'

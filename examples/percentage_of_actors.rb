@@ -1,21 +1,11 @@
-require File.expand_path('../example_setup', __FILE__)
-
+require 'bundler/setup'
 require 'flipper'
 
-adapter = Flipper::Adapters::Memory.new
-flipper = Flipper.new(adapter)
-stats = flipper[:stats]
+stats = Flipper[:stats]
 
 # Some class that represents what will be trying to do something
-class User
-  attr_reader :id
-
-  def initialize(id)
-    @id = id
-  end
-
-  # Must respond to flipper_id
-  alias_method :flipper_id, :id
+class User < Struct.new(:id)
+  include Flipper::Identifier
 end
 
 total = 100_000
@@ -24,10 +14,10 @@ total = 100_000
 users = (1..total).map { |n| User.new(n) }
 
 perform_test = lambda { |number|
-  flipper[:stats].enable flipper.actors(number)
+  Flipper.enable_percentage_of_actors :stats, number
 
   enabled = users.map { |user|
-    flipper[:stats].enabled?(user) ? true : nil
+    Flipper.enabled?(:stats, user) ? true : nil
   }.compact
 
   actual = (enabled.size / total.to_f * 100).round(3)

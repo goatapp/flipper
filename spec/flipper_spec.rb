@@ -1,4 +1,4 @@
-require 'helper'
+require 'flipper/cloud'
 
 RSpec.describe Flipper do
   describe '.new' do
@@ -202,6 +202,12 @@ RSpec.describe Flipper do
       expect(described_class.enabled?(:search)).to be(true)
     end
 
+    it 'delegates export to instance' do
+      described_class.enable(:search)
+      expect(described_class.export).to eq(described_class.adapter.export)
+      expect(described_class.export(format: :json)).to eq(described_class.adapter.export(format: :json))
+    end
+
     it 'delegates adapter to instance' do
       expect(described_class.adapter).to eq(described_class.instance.adapter)
     end
@@ -214,6 +220,31 @@ RSpec.describe Flipper do
 
     it 'delegates memoizing? to instance' do
       expect(described_class.memoizing?).to eq(described_class.adapter.memoizing?)
+    end
+
+    it 'delegates sync stuff to instance and does nothing' do
+      expect(described_class.sync).to be(nil)
+      expect(described_class.sync_secret).to be(nil)
+    end
+
+    it 'delegates sync stuff to instance for Flipper::Cloud' do
+      stub = stub_request(:get, "https://www.flippercloud.io/adapter/features?exclude_gate_names=true").
+        with({
+          headers: {
+            'Flipper-Cloud-Token'=>'asdf',
+          },
+        }).to_return(status: 200, body: '{"features": {}}', headers: {})
+      cloud_configuration = Flipper::Cloud::Configuration.new({
+        token: "asdf",
+        sync_secret: "tasty",
+      })
+
+      described_class.configure do |config|
+        config.default { Flipper::Cloud::DSL.new(cloud_configuration) }
+      end
+      described_class.sync
+      expect(described_class.sync_secret).to eq("tasty")
+      expect(stub).to have_been_requested
     end
   end
 

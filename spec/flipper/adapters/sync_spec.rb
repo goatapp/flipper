@@ -1,7 +1,5 @@
-require 'helper'
 require 'flipper/adapters/sync'
 require 'flipper/adapters/operation_logger'
-require 'flipper/spec/shared_adapter_specs'
 require 'active_support/notifications'
 
 RSpec.describe Flipper::Adapters::Sync do
@@ -175,22 +173,22 @@ RSpec.describe Flipper::Adapters::Sync do
   end
 
   it 'synchronizes for #features' do
-    expect(subject).to receive(:sync)
+    expect(subject).to receive(:synchronize)
     subject.features
   end
 
   it 'synchronizes for #get' do
-    expect(subject).to receive(:sync)
+    expect(subject).to receive(:synchronize)
     subject.get sync[:search]
   end
 
   it 'synchronizes for #get_multi' do
-    expect(subject).to receive(:sync)
+    expect(subject).to receive(:synchronize)
     subject.get_multi [sync[:search]]
   end
 
   it 'synchronizes for #get_all' do
-    expect(subject).to receive(:sync)
+    expect(subject).to receive(:synchronize)
     subject.get_all
   end
 

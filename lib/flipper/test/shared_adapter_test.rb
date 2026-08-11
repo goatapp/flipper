@@ -1,4 +1,3 @@
-# rubocop:disable Metrics/ModuleLength
 module Flipper
   module Test
     module SharedAdapterTests
@@ -35,7 +34,16 @@ module Flipper
         assert_includes @adapter.class.ancestors, Flipper::Adapter
       end
 
+      def test_knows_how_to_get_adapter_from_source
+        adapter = Flipper::Adapters::Memory.new
+        flipper = Flipper.new(adapter)
+
+        assert_includes adapter.class.from(adapter).class.ancestors, Flipper::Adapter
+        assert_includes adapter.class.from(flipper).class.ancestors, Flipper::Adapter
+      end
+
       def test_returns_correct_default_values_for_gates_if_none_are_enabled
+        assert_equal @adapter.class.default_config, @adapter.get(@feature)
         assert_equal @adapter.default_config, @adapter.get(@feature)
       end
 
@@ -43,7 +51,7 @@ module Flipper
         assert_equal true, @adapter.enable(@feature, @boolean_gate, @flipper.boolean)
         assert_equal 'true', @adapter.get(@feature)[:boolean]
         assert_equal true, @adapter.disable(@feature, @boolean_gate, @flipper.boolean(false))
-        assert_equal nil, @adapter.get(@feature)[:boolean]
+        assert_nil @adapter.get(@feature)[:boolean]
       end
 
       def test_fully_disables_all_enabled_things_when_boolean_gate_disabled
@@ -284,6 +292,37 @@ module Flipper
       def test_can_double_enable_without_error
         assert_equal true, @adapter.enable(@feature, @boolean_gate, @flipper.boolean)
         assert_equal true, @adapter.enable(@feature, @boolean_gate, @flipper.boolean)
+      end
+
+      def test_can_get_all_features_when_there_are_none
+        expected = {}
+        assert_equal Set.new, @adapter.features
+        assert_equal expected, @adapter.get_all
+      end
+
+      def test_clears_other_gate_values_on_enable
+        actor = Flipper::Actor.new('Flipper::Actor;22')
+        assert_equal true, @adapter.enable(@feature, @actors_gate, @flipper.actors(25))
+        assert_equal true, @adapter.enable(@feature, @time_gate, @flipper.time(25))
+        assert_equal true, @adapter.enable(@feature, @group_gate, @flipper.group(:admins))
+        assert_equal true, @adapter.enable(@feature, @actor_gate, @flipper.actor(actor))
+        assert_equal true, @adapter.enable(@feature, @boolean_gate, @flipper.boolean(true))
+        assert_equal @adapter.default_config.merge(boolean: "true"), @adapter.get(@feature)
+      end
+
+      def test_can_import_and_export
+        adapter = Flipper::Adapters::Memory.new
+        source_flipper = Flipper.new(adapter)
+        source_flipper.enable(:stats)
+        export = adapter.export
+
+        # some adapters cannot import so if they return false lets assert it
+        # didn't happen
+        if @adapter.import(export)
+          assert @flipper[:stats].enabled?
+        else
+          refute @flipper[:stats].enabled?
+        end
       end
     end
   end

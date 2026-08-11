@@ -1,6 +1,4 @@
-require 'helper'
 require 'flipper/adapters/operation_logger'
-require 'flipper/spec/shared_adapter_specs'
 
 RSpec.describe Flipper::Adapters::OperationLogger do
   let(:operations) { [] }
@@ -11,14 +9,13 @@ RSpec.describe Flipper::Adapters::OperationLogger do
 
   it_should_behave_like 'a flipper adapter'
 
-  it 'forwards missing methods to underlying adapter' do
-    adapter = Class.new do
-      def foo
-        :foo
-      end
-    end.new
-    operation_logger = described_class.new(adapter)
-    expect(operation_logger.foo).to eq(:foo)
+  it 'shows itself when inspect' do
+    subject.features
+    output = subject.inspect
+    expect(output).to match(/OperationLogger/)
+    expect(output).to match(/operation_logger/)
+    expect(output).to match(/@type=:features/)
+    expect(output).to match(/@adapter=#<Flipper::Adapters::Memory/)
   end
 
   describe '#get' do
@@ -97,6 +94,35 @@ RSpec.describe Flipper::Adapters::OperationLogger do
 
     it 'returns result' do
       expect(@result).to eq(adapter.add(@feature))
+    end
+  end
+
+  describe '#import' do
+    before do
+      @source = Flipper::Adapters::Memory.new
+      @result = subject.import(@source)
+    end
+
+    it 'logs operation' do
+      expect(subject.count(:import)).to be(1)
+    end
+
+    it 'returns result' do
+      expect(@result).to eq(adapter.import(@source))
+    end
+  end
+
+  describe '#export' do
+    before do
+      @result = subject.export(format: :json, version: 1)
+    end
+
+    it 'logs operation' do
+      expect(subject.count(:export)).to be(1)
+    end
+
+    it 'returns result' do
+      expect(@result).to eq(adapter.export(format: :json, version: 1))
     end
   end
 end

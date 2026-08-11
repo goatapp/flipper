@@ -1,5 +1,9 @@
+require 'ice_age'
 require 'json'
 require 'rack/test'
+# Rack 3 moved Rack::Session::Cookie into the rack-session gem; the require
+# path is the same for both, so this works on rack 2 and rack 3.
+require 'rack/session/cookie'
 
 module SpecHelpers
   def self.included(base)
@@ -9,7 +13,8 @@ module SpecHelpers
 
   def build_app(flipper, options = {})
     Flipper::UI.app(flipper, options) do |builder|
-      builder.use Rack::Session::Cookie, secret: 'test'
+      # Rack 3 requires secrets to be at least 64 bytes
+      builder.use Rack::Session::Cookie, secret: 'x' * 64
     end
   end
 
@@ -30,7 +35,7 @@ module SpecHelpers
   end
 
   def api_error_code_reference_url
-    'https://github.com/jnunemaker/flipper/tree/master/docs/api#error-code-reference'
+    'https://flippercloud.io/docs/api#error-code-reference'
   end
 
   def api_not_found_response
@@ -56,9 +61,29 @@ module SpecHelpers
       'more_info' => api_error_code_reference_url,
     }
   end
+
+  def silence
+    # Store the original stderr and stdout in order to restore them later
+    original_stderr = $stderr
+    original_stdout = $stdout
+
+    # Redirect stderr and stdout
+    output = $stderr = $stdout = StringIO.new
+
+    yield
+
+    $stderr = original_stderr
+    $stdout = original_stdout
+
+    # Return output
+    output.string
+  end
 end
 
 RSpec.configure do |config|
+  config.order = :random
+  Kernel.srand config.seed
+
   config.include Rack::Test::Methods
   config.include SpecHelpers
 end

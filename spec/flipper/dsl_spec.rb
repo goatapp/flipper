@@ -1,4 +1,3 @@
-require 'helper'
 require 'flipper/dsl'
 
 RSpec.describe Flipper::DSL do
@@ -7,9 +6,19 @@ RSpec.describe Flipper::DSL do
   let(:adapter) { Flipper::Adapters::Memory.new }
 
   describe '#initialize' do
-    it 'sets adapter' do
-      dsl = described_class.new(adapter)
-      expect(dsl.adapter).not_to be_nil
+    context 'when using default memoize strategy' do
+      it 'wraps the given adapter with Flipper::Adapters::Memoizable' do
+        dsl = described_class.new(adapter)
+        expect(dsl.adapter.class).to be(Flipper::Adapters::Memoizable)
+        expect(dsl.adapter.adapter).to be(adapter)
+      end
+    end
+
+    context 'when disabling memoization' do
+      it 'uses the given adapter directly' do
+        dsl = described_class.new(adapter, memoize: false)
+        expect(dsl.adapter).to be(adapter)
+      end
     end
 
     it 'defaults instrumenter to noop' do
@@ -140,12 +149,12 @@ RSpec.describe Flipper::DSL do
   end
 
   describe '#actor' do
-    context 'for a thing' do
+    context 'for an actor' do
       it 'returns actor instance' do
-        thing = Flipper::Actor.new(33)
-        actor = subject.actor(thing)
-        expect(actor).to be_instance_of(Flipper::Types::Actor)
-        expect(actor.value).to eq('33')
+        actor = Flipper::Actor.new(33)
+        flipper_actor = subject.actor(actor)
+        expect(flipper_actor).to be_instance_of(Flipper::Types::Actor)
+        expect(flipper_actor.value).to eq('33')
       end
     end
 
@@ -333,10 +342,27 @@ RSpec.describe Flipper::DSL do
   end
 
   describe '#import' do
+    context "with flipper instance" do
+      it 'delegates to adapter' do
+        destination_flipper = build_flipper
+        expect(subject.adapter).to receive(:import).with(destination_flipper)
+        subject.import(destination_flipper)
+      end
+    end
+
+    context "with flipper adapter" do
+      it 'delegates to adapter' do
+        destination_flipper = build_flipper
+        expect(subject.adapter).to receive(:import).with(destination_flipper.adapter)
+        subject.import(destination_flipper.adapter)
+      end
+    end
+  end
+
+  describe "#export" do
     it 'delegates to adapter' do
-      destination_flipper = build_flipper
-      expect(subject.adapter).to receive(:import).with(destination_flipper.adapter)
-      subject.import(destination_flipper)
+      expect(subject.export).to eq(subject.adapter.export)
+      expect(subject.export(format: :json)).to eq(subject.adapter.export(format: :json))
     end
   end
 

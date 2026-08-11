@@ -1,7 +1,7 @@
 require 'test_helper'
 require 'flipper/adapters/redis_cache'
 
-class DalliTest < MiniTest::Test
+class RedisCacheTest < MiniTest::Test
   prepend Flipper::Test::SharedAdapterTests
 
   def setup
@@ -9,6 +9,8 @@ class DalliTest < MiniTest::Test
     @cache = Redis.new(url: url).tap(&:flushdb)
     memory_adapter = Flipper::Adapters::Memory.new
     @adapter = Flipper::Adapters::RedisCache.new(memory_adapter, @cache)
+  rescue Redis::CannotConnectError
+    ENV['CI'] ? raise : skip('Reids not available')
   end
 
   def teardown

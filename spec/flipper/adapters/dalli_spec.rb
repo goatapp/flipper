@@ -1,20 +1,22 @@
-require 'helper'
 require 'flipper/adapters/operation_logger'
 require 'flipper/adapters/dalli'
-require 'flipper/spec/shared_adapter_specs'
+require 'logger'
 
 RSpec.describe Flipper::Adapters::Dalli do
   let(:memory_adapter) do
     Flipper::Adapters::OperationLogger.new(Flipper::Adapters::Memory.new)
   end
-  let(:cache)   { Dalli::Client.new(ENV['MEMCACHED_URL'] || '127.0.0.1:11211') }
+  let(:cache)   { Dalli::Client.new(ENV['MEMCACHED_URL']) }
   let(:adapter) { described_class.new(memory_adapter, cache) }
   let(:flipper) { Flipper.new(adapter) }
 
   subject { adapter }
 
   before do
-    cache.flush
+    Dalli.logger = Logger.new('/dev/null')
+    skip_on_error(Dalli::NetworkError, 'Memcached not available') do
+      cache.flush
+    end
   end
 
   it_should_behave_like 'a flipper adapter'

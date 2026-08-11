@@ -1,6 +1,6 @@
-require File.expand_path('../example_setup', __FILE__)
-
+require 'bundler/setup'
 require 'securerandom'
+require 'active_support/isolated_execution_state'
 require 'active_support/notifications'
 
 class FlipperSubscriber

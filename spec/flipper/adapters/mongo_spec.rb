@@ -1,6 +1,4 @@
-require 'helper'
 require 'flipper/adapters/mongo'
-require 'flipper/spec/shared_adapter_specs'
 
 Mongo::Logger.logger.level = Logger::INFO
 
@@ -11,17 +9,30 @@ RSpec.describe Flipper::Adapters::Mongo do
   let(:port) { ENV['MONGODB_PORT'] || 27017 }
 
   let(:client) do
-    Mongo::Client.new(["#{host}:#{port}"], server_selection_timeout: 1, database: 'testing')
+    logger = Logger.new('/dev/null')
+    Mongo::Client.new(["#{host}:#{port}"], server_selection_timeout: 0.01, database: 'testing', logger: logger)
   end
   let(:collection) { client['testing'] }
 
   before do
-    begin
-      collection.drop
-    rescue Mongo::Error::OperationFailure
+    skip_on_error(Mongo::Error::NoServerAvailable, 'Mongo not available') do
+      begin
+        collection.drop
+      rescue Mongo::Error::OperationFailure
+      end
     end
     collection.create
   end
 
   it_should_behave_like 'a flipper adapter'
+
+  it 'configures itself on load' do
+    Flipper.configuration = nil
+    Flipper.instance = nil
+
+    load 'flipper/adapters/mongo.rb'
+
+    ENV["MONGO_URL"] ||= "mongodb://127.0.0.1:27017/testing"
+    expect(Flipper.adapter.adapter).to be_a(Flipper::Adapters::Mongo)
+  end
 end

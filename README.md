@@ -1,29 +1,29 @@
-<pre>
-                                   __
-                               _.-~  )
-                    _..--~~~~,'   ,-/     _
-                 .-'. . . .'   ,-','    ,' )
-               ,'. . . _   ,--~,-'__..-'  ,'
-             ,'. . .  (@)' ---~~~~      ,'
-            /. . . . '~~             ,-'
-           /. . . . .             ,-'
-          ; . . . .  - .        ,'
-         : . . . .       _     /
-        . . . . .          `-.:
-       . . . ./  - .          )
-      .  . . |  _____..---.._/ _____
-~---~~~~----~~~~             ~~
-</pre>
+[![Flipper Mark](docs/images/banner.jpg)](https://www.flippercloud.io)
 
-Feature flipping is the act of enabling or disabling features or parts of your application, ideally without re-deploying or changing anything in your code base.
+[Website](https://flippercloud.io) | [Documentation](https://flippercloud.io/docs) | [Examples](examples) | [Twitter](https://twitter.com/flipper_cloud)
 
-The goal of this gem is to make turning features on or off so easy that everyone does it. Whatever your data store, throughput, or experience, feature flipping should be easy and have minimal impact on your application.
+# Flipper
+
+> Beautiful, performant feature flags for Ruby.
+
+Flipper gives you control over who has access to features in your app.
+
+* Enable or disable features for everyone, specific actors, groups of actors, a percentage of actors, or a percentage of time.
+* Configure your feature flags from the console or a web UI.
+* Regardless of what data store you are using, Flipper can performantly store your feature flags.
+* Use [Flipper Cloud](#flipper-cloud) to cascade features from multiple environments, share settings with your team, control permissions, keep an audit history, and rollback.
+
+Control your software &mdash; don't let it control you.
 
 ## Installation
 
 Add this line to your application's Gemfile:
 
     gem 'flipper'
+
+You'll also want to pick a storage [adapter](https://flippercloud.io/docs/adapters), for example:
+
+    gem 'flipper-active_record'
 
 And then execute:
 
@@ -33,59 +33,62 @@ Or install it yourself with:
 
     $ gem install flipper
 
-## Examples
+## Subscribe &amp; Ship
 
-The goal of the API for flipper was to have everything revolve around features and what ways they can be enabled. Start with top level and dig into a feature, then dig in further and enable that feature for a given type of access, as opposed to thinking about how the feature will be accessed first (ie: `stats.enable` vs `activate_group(:stats, ...)`).
+[💌 &nbsp;Subscribe](https://buttondown.email/flipper) - I'll send you short and sweet emails when we release new versions.
+
+## Getting Started
+
+Use `Flipper#enabled?` in your app to check if a feature is enabled.
 
 ```ruby
-require 'flipper'
-
-Flipper.configure do |config|
-  config.default do
-    # pick an adapter, this uses memory, any will do
-    adapter = Flipper::Adapters::Memory.new
-
-    # pass adapter to handy DSL instance
-    Flipper.new(adapter)
-  end
-end
-
 # check if search is enabled
-if Flipper.enabled?(:search)
-  puts 'Search away!'
-else
-  puts 'No search for you!'
-end
-
-puts 'Enabling Search...'
-Flipper.enable(:search)
-
-# check if search is enabled
-if Flipper.enabled?(:search)
+if Flipper.enabled? :search, current_user
   puts 'Search away!'
 else
   puts 'No search for you!'
 end
 ```
 
-Of course there are more [examples for you to peruse](examples/). You could also check out the [DSL](lib/flipper/dsl.rb) and [Feature](lib/flipper/feature.rb) classes for code/docs.
+All features are disabled by default, so you'll need to explicitly enable them.
 
-## Docs
+```ruby
+# Enable a feature for everyone
+Flipper.enable :search
 
-* [Gates](docs/Gates.md) - Boolean, Groups, Actors, % of Actors, and % of Time
-* [Adapters](docs/Adapters.md) - Mongo, Redis, Cassandra, Active Record...
-* [Instrumentation](docs/Instrumentation.md) - ActiveSupport::Notifications and Statsd
-* [Optimization](docs/Optimization.md) - Memoization middleware and Cache adapters
-* [Web Interface](docs/ui/README.md) - Point and click...
-* [API](docs/api/README.md) - HTTP API interface
-* [Caveats](docs/Caveats.md) - Flipper beware! (see what I did there)
-* [Docker-Compose](docs/DockerCompose.md) - Using docker-compose in contributing
+# Enable a feature for a specific actor
+Flipper.enable_actor :search, current_user
+
+# Enable a feature for a group of actors
+Flipper.enable_group :search, :admin
+
+# Enable a feature for a percentage of actors
+Flipper.enable_percentage_of_actors :search, 2
+```
+
+Read more about [getting started with Flipper](https://flippercloud.io/docs) and [enabling features](https://flippercloud.io/docs/features).
+
+## Flipper Cloud
+
+Like Flipper and want more? Check out [Flipper Cloud](https://www.flippercloud.io), which comes with:
+
+* **everything in one place** &mdash; no need to bounce around from different application UIs or IRB consoles.
+* **permissions** &mdash; grant access to everyone in your organization or lockdown each project to particular people.
+* **multiple environments** &mdash; production, staging, enterprise, by continent, whatever you need.
+* **personal environments** &mdash; no more rake scripts or manual enable/disable to get your laptop to look like production. Every developer gets a personal environment that inherits from production that they can override as they please ([read more](https://www.johnnunemaker.com/flipper-cloud-environments/)).
+* **no maintenance** &mdash; we'll keep the lights on for you. We also have handy webhooks for keeping your app in sync with Cloud, so **our availability won't affect yours**. All your feature flag reads are local to your app.
+* **audit history** &mdash; every feature change and who made it.
+* **rollbacks** &mdash; enable or disable a feature accidentally? No problem. You can roll back to any point in the audit history with a single click.
+
+[![Flipper Cloud Screenshot](docs/images/flipper_cloud.png)](https://www.flippercloud.io)
+
+Cloud is super simple to integrate with Rails ([demo app](https://github.com/fewerandfaster/flipper-rails-demo)), Sinatra or any other framework.
 
 ## Contributing
 
 1. Fork it
 2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Check your changes with Rubocop tests (`script/rubocop`)
+3. Run the tests (`bundle exec rake`). Check out [Docker-Compose](docs/DockerCompose.md) if you need help getting all the adapters running.
 4. Commit your changes (`git commit -am 'Added some feature'`)
 5. Push to the branch (`git push origin my-new-feature`)
 6. Create new Pull Request
@@ -101,6 +104,8 @@ Of course there are more [examples for you to peruse](examples/). You could also
 | pic | @mention | area |
 |---|---|---|
 | ![@jnunemaker](https://avatars3.githubusercontent.com/u/235?s=64) | [@jnunemaker](https://github.com/jnunemaker) | most things |
+| ![@bkeepers](https://avatars3.githubusercontent.com/u/173?s=64) | [@bkeepers](https://github.com/bkeepers) | most things |
+| ![@dpep](https://avatars3.githubusercontent.com/u/918804?s=64) | [@dpep](https://github.com/dpep) | tbd |
 | ![@alexwheeler](https://avatars3.githubusercontent.com/u/3260042?s=64) | [@alexwheeler](https://github.com/alexwheeler) | api |
 | ![@thetimbanks](https://avatars1.githubusercontent.com/u/471801?s=64) | [@thetimbanks](https://github.com/thetimbanks) | ui |
 | ![@lazebny](https://avatars1.githubusercontent.com/u/6276766?s=64) | [@lazebny](https://github.com/lazebny) | docker |

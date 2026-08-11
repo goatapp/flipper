@@ -17,14 +17,11 @@ module Flipper
       # Public: The path to where the file is stored.
       attr_reader :path
 
-      # Public: PStore's thread_safe option.
-      attr_reader :thread_safe
-
       # Public
-      def initialize(path = 'flipper.pstore', thread_safe = false)
+      def initialize(path = 'flipper.pstore', thread_safe = true)
+        @name = :pstore
         @path = path
         @store = ::PStore.new(path, thread_safe)
-        @name = :pstore
       end
 
       # Public: The set of known features.
@@ -84,7 +81,10 @@ module Flipper
       def enable(feature, gate, thing)
         @store.transaction do
           case gate.data_type
-          when :boolean, :integer
+          when :boolean
+            clear_gates(feature)
+            write key(feature, gate), thing.value.to_s
+          when :integer
             write key(feature, gate), thing.value.to_s
           when :set
             set_add key(feature, gate), thing.value.to_s
@@ -212,4 +212,8 @@ module Flipper
       end
     end
   end
+end
+
+Flipper.configure do |config|
+  config.adapter { Flipper::Adapters::PStore.new }
 end

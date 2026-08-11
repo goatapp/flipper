@@ -1,12 +1,9 @@
-require File.expand_path('../example_setup', __FILE__)
-
+require 'bundler/setup'
 require 'flipper'
 
 # sets up default adapter so Flipper works like Flipper::DSL
 Flipper.configure do |config|
-  config.default do
-    Flipper.new Flipper::Adapters::Memory.new
-  end
+  config.adapter { Flipper::Adapters::Memory.new }
 end
 
 puts Flipper.enabled?(:search) # => false

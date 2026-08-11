@@ -10,17 +10,19 @@ module Flipper
     # Private: What is being used to instrument all the things.
     attr_reader :instrumenter
 
-    def_delegators :@adapter, :memoize=, :memoizing?
+    def_delegators :@adapter, :memoize=, :memoizing?, :import, :export
 
     # Public: Returns a new instance of the DSL.
     #
     # adapter - The adapter that this DSL instance should use.
     # options - The Hash of options.
     #           :instrumenter - What should be used to instrument all the things.
+    #           :memoize - Should adapter be wrapped by memoize adapter or not.
     def initialize(adapter, options = {})
       @instrumenter = options.fetch(:instrumenter, Instrumenters::Noop)
-      memoized = Adapters::Memoizable.new(adapter)
-      @adapter = memoized
+      memoize = options.fetch(:memoize, true)
+      adapter = Adapters::Memoizable.new(adapter) if memoize
+      @adapter = adapter
       @memoized_features = {}
     end
 
@@ -235,12 +237,12 @@ module Flipper
 
     # Public: Wraps an object as a flipper actor.
     #
-    # thing - The object that you would like to wrap.
+    # actor - The object that you would like to wrap.
     #
     # Returns an instance of Flipper::Types::Actor.
-    # Raises ArgumentError if thing does not respond to `flipper_id`.
-    def actor(thing)
-      Types::Actor.new(thing)
+    # Raises ArgumentError if actor does not respond to `flipper_id`.
+    def actor(actor)
+      Types::Actor.new(actor)
     end
 
     # Public: Shortcut for getting a percentage of time instance.
@@ -270,8 +272,12 @@ module Flipper
       adapter.features.map { |name| feature(name) }.to_set
     end
 
-    def import(flipper)
-      adapter.import(flipper.adapter)
+    # Cloud DSL method that does nothing for open source version.
+    def sync
+    end
+
+    # Cloud DSL method that does nothing for open source version.
+    def sync_secret
     end
   end
 end

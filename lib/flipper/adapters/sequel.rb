@@ -97,11 +97,15 @@ module Flipper
       end
 
       def get_all
-        db_gates = @gate_class.fetch(<<-SQL).to_a
-          SELECT ff.key AS feature_key, fg.key, fg.value
-          FROM #{@feature_class.table_name} ff
-          LEFT JOIN #{@gate_class.table_name} fg ON ff.key = fg.feature_key
-        SQL
+        feature_table = @feature_class.table_name.to_sym
+        gate_table = @gate_class.table_name.to_sym
+        features_sql = @feature_class.select(:key.qualify(feature_table).as(:feature_key))
+            .select_append(:key.qualify(gate_table))
+            .select_append(:value.qualify(gate_table))
+            .left_join(@gate_class.table_name.to_sym, feature_key: :key)
+            .sql
+
+        db_gates = @gate_class.fetch(features_sql).to_a
         grouped_db_gates = db_gates.group_by(&:feature_key)
         result = Hash.new { |hash, key| hash[key] = default_config }
         features = grouped_db_gates.keys.map { |key| Flipper::Feature.new(key, self) }
@@ -120,15 +124,10 @@ module Flipper
       # Returns true.
       def enable(feature, gate, thing)
         case gate.data_type
-        when :boolean, :integer
-          @gate_class.db.transaction do
-            args = {
-              feature_key: feature.key,
-              key: gate.key.to_s,
-            }
-            @gate_class.where(args).delete
-            @gate_class.create(gate_attrs(feature, gate, thing))
-          end
+        when :boolean
+          set(feature, gate, thing, clear: true)
+        when :integer
+          set(feature, gate, thing)
         when :set
           begin
             @gate_class.create(gate_attrs(feature, gate, thing))
@@ -153,15 +152,7 @@ module Flipper
         when :boolean
           clear(feature)
         when :integer
-          @gate_class.db.transaction do
-            args = {
-              feature_key: feature.key.to_s,
-              key: gate.key.to_s,
-            }
-            @gate_class.where(args).delete
-
-            @gate_class.create(gate_attrs(feature, gate, thing))
-          end
+          set(feature, gate, thing)
         when :set
           @gate_class.where(gate_attrs(feature, gate, thing))
                      .delete
@@ -178,6 +169,24 @@ module Flipper
         raise "#{data_type} is not supported by this adapter"
       end
 
+      def set(feature, gate, thing, options = {})
+        clear_feature = options.fetch(:clear, false)
+        args = {
+          feature_key: feature.key,
+          key: gate.key.to_s,
+        }
+
+        @gate_class.db.transaction do
+          clear(feature) if clear_feature
+          @gate_class.where(args).delete
+
+          begin
+            @gate_class.create(gate_attrs(feature, gate, thing))
+          rescue ::Sequel::UniqueConstraintViolation
+          end
+        end
+      end
+
       def gate_attrs(feature, gate, thing)
         {
           feature_key: feature.key.to_s,
@@ -192,12 +201,12 @@ module Flipper
           result[gate.key] =
             case gate.data_type
             when :boolean
-              if db_gate = db_gates.detect { |db_gate| db_gate.key == gate.key.to_s }
-                db_gate.value
+              if detected_db_gate = db_gates.detect { |db_gate| db_gate.key == gate.key.to_s }
+                detected_db_gate.value
               end
             when :integer
-              if db_gate = db_gates.detect { |db_gate| db_gate.key == gate.key.to_s }
-                db_gate.value
+              if detected_db_gate = db_gates.detect { |db_gate| db_gate.key == gate.key.to_s }
+                detected_db_gate.value
               end
             when :set
               db_gates.select { |db_gate| db_gate.key == gate.key.to_s }.map(&:value).to_set
@@ -209,3 +218,9 @@ module Flipper
     end
   end
 end
+
+Flipper.configure do |config|
+  config.adapter { Flipper::Adapters::Sequel.new }
+end
+
+Sequel::Model.include Flipper::Identifier

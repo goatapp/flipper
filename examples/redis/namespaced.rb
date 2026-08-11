@@ -1,18 +1,7 @@
-require 'pp'
-require 'pathname'
-require 'logger'
-begin
-  require 'redis-namespace'
-rescue LoadError
-  puts 'you must have redis-namespace gem installed'
-  exit 1
-end
-
-root_path = Pathname(__FILE__).dirname.join('..').expand_path
-lib_path  = root_path.join('lib')
-$:.unshift(lib_path)
-
+require 'bundler/setup'
+require 'redis-namespace'
 require 'flipper/adapters/redis'
+
 options = {url: 'redis://127.0.0.1:6379'}
 if ENV['REDIS_URL']
   options[:url] = ENV['REDIS_URL']
@@ -23,8 +12,8 @@ adapter = Flipper::Adapters::Redis.new(namespaced_client)
 flipper = Flipper.new(adapter)
 
 # Register a few groups.
-Flipper.register(:admins) { |thing| thing.admin? }
-Flipper.register(:early_access) { |thing| thing.early_access? }
+Flipper.register(:admins) { |actor| actor.admin? }
+Flipper.register(:early_access) { |actor| actor.early_access? }
 
 # Create a user class that has flipper_id instance method.
 User = Struct.new(:flipper_id)

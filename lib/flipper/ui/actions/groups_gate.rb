@@ -22,6 +22,8 @@ module Flipper
         end
 
         def post
+          read_only if Flipper::UI.configuration.read_only
+
           feature = flipper[feature_name]
           value = params['value'].to_s.strip
 
@@ -35,7 +37,7 @@ module Flipper
 
             redirect_to("/features/#{feature.key}")
           else
-            error = Rack::Utils.escape("The group named #{value.inspect} has not been registered.")
+            error = "The group named #{value.inspect} has not been registered."
             redirect_to("/features/#{feature.key}/groups?error=#{error}")
           end
         end

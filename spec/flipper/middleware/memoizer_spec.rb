@@ -1,7 +1,5 @@
-require 'helper'
 require 'rack/test'
 require 'active_support/cache'
-require 'active_support/cache/dalli_store'
 require 'flipper/adapters/active_support_cache_store'
 require 'flipper/adapters/operation_logger'
 
@@ -14,10 +12,6 @@ RSpec.describe Flipper::Middleware::Memoizer do
   end
   let(:flipper) { Flipper.new(adapter) }
   let(:env) { { 'flipper' => flipper } }
-
-  after do
-    flipper.memoize = nil
-  end
 
   it 'raises if initialized with app and flipper instance' do
     expect do
@@ -42,26 +36,6 @@ RSpec.describe Flipper::Middleware::Memoizer do
       middleware = described_class.new(app)
       middleware.call(env)
       expect(called).to eq(true)
-    end
-
-    it 'disables local cache after body close' do
-      app = ->(_env) { [200, {}, []] }
-      middleware = described_class.new(app)
-      body = middleware.call(env).last
-
-      expect(flipper.memoizing?).to eq(true)
-      body.close
-      expect(flipper.memoizing?).to eq(false)
-    end
-
-    it 'clears local cache after body close' do
-      app = ->(_env) { [200, {}, []] }
-      middleware = described_class.new(app)
-      body = middleware.call(env).last
-
-      flipper.adapter.cache['hello'] = 'world'
-      body.close
-      expect(flipper.adapter.cache).to be_empty
     end
 
     it 'clears the local cache with a successful request' do
@@ -103,14 +77,14 @@ RSpec.describe Flipper::Middleware::Memoizer do
     end
   end
 
-  context 'with preload_all' do
+  context 'with preload: true' do
     let(:app) do
       # ensure scoped for builder block, annoying...
       instance = flipper
       middleware = described_class
 
       Rack::Builder.new do
-        use middleware, preload_all: true
+        use middleware, preload: true
 
         map '/' do
           run ->(_env) { [200, {}, []] }
@@ -139,7 +113,7 @@ RSpec.describe Flipper::Middleware::Memoizer do
         [200, {}, []]
       end
 
-      middleware = described_class.new(app, preload_all: true)
+      middleware = described_class.new(app, preload: true)
       middleware.call(env)
 
       expect(adapter.operations.size).to be(1)
@@ -156,7 +130,7 @@ RSpec.describe Flipper::Middleware::Memoizer do
         [200, {}, []]
       end
 
-      middleware = described_class.new(app, preload_all: true)
+      middleware = described_class.new(app, preload: true)
       middleware.call(env)
 
       expect(adapter.count(:get)).to be(1)
@@ -222,6 +196,44 @@ RSpec.describe Flipper::Middleware::Memoizer do
     end
   end
 
+  context 'with multiple instances' do
+    let(:app) do
+      # ensure scoped for builder block, annoying...
+      instance = flipper
+      middleware = described_class
+
+      Rack::Builder.new do
+        use middleware, preload: %i(stats)
+        # Second instance should be a noop
+        use middleware, preload: true
+
+        map '/' do
+          run ->(_env) { [200, {}, []] }
+        end
+
+        map '/fail' do
+          run ->(_env) { raise 'FAIL!' }
+        end
+      end.to_app
+    end
+
+    def get(uri, params = {}, env = {}, &block)
+      silence { super(uri, params, env, &block) }
+    end
+
+    include_examples 'flipper middleware'
+
+    it 'does not call preload in second instance' do
+      expect(flipper).not_to receive(:preload_all)
+
+      output = get '/', {}, 'flipper' => flipper
+
+      expect(output).to match(/Flipper::Middleware::Memoizer appears to be running twice/)
+      expect(adapter.count(:get_multi)).to be(1)
+      expect(adapter.last(:get_multi).args).to eq([[flipper[:stats]]])
+    end
+  end
+
   context 'when an app raises an exception' do
     it 'resets memoize' do
       begin
@@ -259,10 +271,9 @@ RSpec.describe Flipper::Middleware::Memoizer do
   context 'with Flipper setup in env' do
     it 'caches getting a feature for duration of request' do
       Flipper.configure do |config|
-        config.default do
+        config.adapter do
           memory = Flipper::Adapters::Memory.new
-          logged_adapter = Flipper::Adapters::OperationLogger.new(memory)
-          Flipper.new(logged_adapter)
+          Flipper::Adapters::OperationLogger.new(memory)
         end
       end
       Flipper.enable(:stats)
@@ -308,14 +319,16 @@ RSpec.describe Flipper::Middleware::Memoizer do
     end
   end
 
-  context 'with preload_all and unless option' do
+  context 'with preload:true' do
+    let(:options) { {preload: true} }
+
     let(:app) do
       # ensure scoped for builder block, annoying...
       middleware = described_class
+      opts = options
 
       Rack::Builder.new do
-        use middleware, preload_all: true,
-                        unless: ->(request) { request.path.start_with?("/assets") }
+        use middleware, opts
 
         map '/' do
           run ->(_env) { [200, {}, []] }
@@ -327,22 +340,56 @@ RSpec.describe Flipper::Middleware::Memoizer do
       end.to_app
     end
 
-    it 'does NOT preload_all if request matches unless block' do
-      expect(flipper).to receive(:preload_all).never
-      get '/assets/foo.png', {}, 'flipper' => flipper
+    context 'and unless option' do
+      before do
+        options[:unless] = ->(request) { request.path.start_with?("/assets") }
+      end
+
+      it 'does NOT preload if request matches unless block' do
+        expect(flipper).to receive(:preload_all).never
+        get '/assets/foo.png', {}, 'flipper' => flipper
+      end
+
+      it 'does preload if request does NOT match unless block' do
+        expect(flipper).to receive(:preload_all).once
+        get '/some/other/path', {}, 'flipper' => flipper
+      end
     end
 
-    it 'does preload_all if request does NOT match unless block' do
-      expect(flipper).to receive(:preload_all).once
-      get '/some/other/path', {}, 'flipper' => flipper
+    context 'and if option' do
+      before do
+        options[:if] = ->(request) { !request.path.start_with?("/assets") }
+      end
+
+      it 'does NOT preload if request does not match if block' do
+        expect(flipper).to receive(:preload_all).never
+        get '/assets/foo.png', {}, 'flipper' => flipper
+      end
+
+      it 'does preload if request matches if block' do
+        expect(flipper).to receive(:preload_all).once
+        get '/some/other/path', {}, 'flipper' => flipper
+      end
     end
   end
 
-  context 'with preload_all and caching adapter' do
+  context 'with preload:true and caching adapter' do
+    let(:app) do
+      app = lambda do |_env|
+        flipper[:stats].enabled?
+        flipper[:stats].enabled?
+        flipper[:shiny].enabled?
+        flipper[:shiny].enabled?
+        [200, {}, []]
+      end
+
+      described_class.new(app, preload: true)
+    end
+
     it 'eagerly caches known features for duration of request' do
       memory = Flipper::Adapters::Memory.new
       logged_memory = Flipper::Adapters::OperationLogger.new(memory)
-      cache = ActiveSupport::Cache::DalliStore.new
+      cache = ActiveSupport::Cache::MemoryStore.new
       cache.clear
       cached = Flipper::Adapters::ActiveSupportCacheStore.new(logged_memory, cache, expires_in: 10)
       logged_cached = Flipper::Adapters::OperationLogger.new(cached)
@@ -355,25 +402,15 @@ RSpec.describe Flipper::Middleware::Memoizer do
       logged_memory.reset
       logged_cached.reset
 
-      app = lambda do |_env|
-        flipper[:stats].enabled?
-        flipper[:stats].enabled?
-        flipper[:shiny].enabled?
-        flipper[:shiny].enabled?
-        [200, {}, []]
-      end
-
-      middleware = described_class.new(app, preload_all: true)
-
-      middleware.call('flipper' => flipper)
+      get '/', {}, 'flipper' => flipper
       expect(logged_cached.count(:get_all)).to be(1)
       expect(logged_memory.count(:get_all)).to be(1)
 
-      middleware.call('flipper' => flipper)
+      get '/', {}, 'flipper' => flipper
       expect(logged_cached.count(:get_all)).to be(2)
       expect(logged_memory.count(:get_all)).to be(1)
 
-      middleware.call('flipper' => flipper)
+      get '/', {}, 'flipper' => flipper
       expect(logged_cached.count(:get_all)).to be(3)
       expect(logged_memory.count(:get_all)).to be(1)
     end

@@ -1,7 +1,5 @@
-require 'helper'
 require 'flipper/adapters/memoizable'
 require 'flipper/adapters/operation_logger'
-require 'flipper/spec/shared_adapter_specs'
 
 RSpec.describe Flipper::Adapters::Memoizable do
   let(:features_key) { described_class::FeaturesKey }
@@ -12,16 +10,6 @@ RSpec.describe Flipper::Adapters::Memoizable do
   subject { described_class.new(adapter, cache) }
 
   it_should_behave_like 'a flipper adapter'
-
-  it 'forwards missing methods to underlying adapter' do
-    adapter = Class.new do
-      def foo
-        :foo
-      end
-    end.new
-    memoizable = described_class.new(adapter)
-    expect(memoizable.foo).to eq(:foo)
-  end
 
   describe '#name' do
     it 'is instrumented' do
@@ -247,6 +235,36 @@ RSpec.describe Flipper::Adapters::Memoizable do
         result = subject.disable(feature, gate, flipper.bool)
         adapter_result = adapter.disable(feature, gate, flipper.bool)
         expect(result).to eq(adapter_result)
+      end
+    end
+  end
+
+  describe "#import" do
+    context "with memoization enabled" do
+      before do
+        subject.memoize = true
+      end
+
+      it "unmemoizes features" do
+        cache[:foo] = "bar"
+        flipper[:stats].enable
+        flipper[:search].disable
+        subject.import(Flipper::Adapters::Memory.new)
+        expect(cache).to be_empty
+      end
+    end
+
+    context "with memoization disabled" do
+      before do
+        subject.memoize = false
+      end
+
+      it "does not unmemoize features" do
+        cache[:foo] = "bar"
+        flipper[:stats].enable
+        flipper[:search].disable
+        subject.import(Flipper::Adapters::Memory.new)
+        expect(cache).not_to be_empty
       end
     end
   end

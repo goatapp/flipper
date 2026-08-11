@@ -14,19 +14,26 @@ module Flipper
 
         if block_given?
           @block = block
-          @single_argument = @block.arity.abs == 1
+          @single_argument = call_with_no_context?(@block)
         else
-          @block = ->(_thing, _context) { false }
+          @block = ->(actor, context) { false }
           @single_argument = false
         end
       end
 
-      def match?(thing, context)
+      def match?(actor, context)
         if @single_argument
-          @block.call(thing)
+          @block.call(actor)
         else
-          @block.call(thing, context)
+          @block.call(actor, context)
         end
+      end
+
+      NO_PARAMS_IN_RUBY_3 = [[:req], [:rest]]
+      def call_with_no_context?(block)
+        return true if block.parameters == NO_PARAMS_IN_RUBY_3
+
+        block.arity.abs == 1
       end
     end
   end

@@ -1,10 +1,4 @@
-require 'pathname'
-require 'logger'
-
-root_path = Pathname(__FILE__).dirname.join('..').expand_path
-lib_path  = root_path.join('lib')
-$:.unshift(lib_path)
-
+require 'bundler/setup'
 require 'redis'
 require 'rollout'
 require 'flipper'
@@ -19,9 +13,7 @@ rollout_flipper = Flipper.new(rollout_adapter)
 
 # setup flipper default instance
 Flipper.configure do |config|
-  config.default do
-    Flipper.new(Flipper::Adapters::Redis.new(redis))
-  end
+  config.adapter { Flipper::Adapters::Redis.new(redis) }
 end
 
 # flush redis so we have clean state for script

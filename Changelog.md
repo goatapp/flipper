@@ -1,4 +1,312 @@
-## master
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## 0.28.3
+
+* Updated cloud config to ensure that poll adapter ONLY syncs from cloud to local adapter (and never back to cloud). Shouldn't affect anyone other than making things more safe if an incorrect response is received from the cloud poll endpoint. (https://github.com/jnunemaker/flipper/pull/740)
+
+## 0.28.2
+
+* UI: fix path to bundled assets when mounted in another Rack app (https://github.com/jnunemaker/flipper/pull/742)
+
+## 0.28.1
+
+### Additions/Changes
+
+* Use new method of making logs bold for rails (https://github.com/jnunemaker/flipper/pull/726)
+* Bundle bootstrap, jquery and poppler with the library. (https://github.com/jnunemaker/flipper/pull/731)
+
+## 0.28.0
+
+### Additions/Changes
+
+* Allow multiple actors for Flipper.enabled?. Improves performance of feature flags for multiple actors and simplifies code for users of flipper. This likely breaks things for anyone using Flipper internal classes related to actors, but that isn't likely you so you should be fine.
+  ```diff
+  - [user, user.team, user.org].any? { |actor| Flipper.enabled?(:my_feature, actor) }
+  + Flipper.enabled?(:my_feature, user, user.team, user.org)
+  ```
+* If you currently use `actor.thing` in a group, you'll need to change it to `actor.actor`.
+  ```diff
+  - Flipper.register(:our_group) do |actor|
+  -   actor.thing.is_a?(OurClassName)
+  - end
+  + Flipper.register(:our_group) do |actor|
+  +   actor.actor.is_a?(OurClassName)
+  + end
+  ```
+* If you currently use `context.thing` in a group or elsewhere, you'll need to change it to `context.actors`.
+  ```diff
+  - Flipper.register(:our_group) do |actor, context|
+  -   context.thing.is_a?(OurClassName)
+  - end
+  + Flipper.register(:our_group) do |actor, context|
+  +   context.actors.any? { |actor| actor.is_a?(OurClassName) }
+  + end
+  ```
+
+### Deprecations
+
+* `:thing` in `enabled?` instrumentation payload. Use `:actors` instead.
+    ```diff
+    ActiveSupport::Notifications.subscribe('enabled?.feature_operation.flipper') do |name, start, finish, id, payload|
+    -   payload[:thing]
+    +   payload[:actors]
+    end
+    ```
+
+## 0.27.1
+
+* Quick fix for missing require of "flipper/version" that was causing issues with some flipper-ui people.
+
+## 0.27.0
+
+* Easy Import/Export (https://github.com/jnunemaker/flipper/pull/709). This has some breaking changes but only if you are using flipper internals. If you are just using Flipper.* methods, you'll be fine.
+
+## 0.26.2
+
+* Improve Active Record Adapter get/get_multi/get_all performance by 5-10x when dealing with thousands of gate values (https://github.com/jnunemaker/flipper/pull/707).
+
+## 0.26.1
+
+* Improve `Flipper#enabled?` performance by ~37%-55% (https://github.com/jnunemaker/flipper/pull/706)
+* Make Memory adapter threadsafe (https://github.com/jnunemaker/flipper/pull/702 and https://github.com/jnunemaker/flipper/pull/703)
+* ActiveRecord adapter: wrap all reads/writes in `with_connection` (https://github.com/jnunemaker/flipper/pull/705)
+* Improve performance of background polling (https://github.com/jnunemaker/flipper/pull/699)
+* Remove executables directive from gem (https://github.com/jnunemaker/flipper/pull/693)
+
+## 0.26.0
+
+* Cloud Background Polling (https://github.com/jnunemaker/flipper/pull/682)
+* Changed default branch from master to main
+* Allow configuring railtie via ENV vars (https://github.com/jnunemaker/flipper/pull/681)
+* flipper-ui: Fix issue preventing feature flags being enabled when confirm_fully_enable is on and feature_removal_enabled is off (https://github.com/jnunemaker/flipper/pull/680)
+
+## 0.25.4
+
+* Added read_only UI config option (https://github.com/jnunemaker/flipper/pull/679)
+
+## 0.25.3
+
+* Added configurable confirm warning for fully enabling a feature (https://github.com/jnunemaker/flipper/pull/665)
+* Update rack protection to < 4 (https://github.com/jnunemaker/flipper/pull/675)
+* Check sadd_returns_boolean on the actual client class rather than ::Redis (https://github.com/jnunemaker/flipper/pull/677)
+
+## 0.25.2
+
+* Fix deprecation warnings for Redis >= 4.8.0 (https://github.com/jnunemaker/flipper/pull/660)
+
+## 0.25.1
+
+### Additions/Changes
+
+* ActiveRecord: use provided `gate_class` option when calling `#get_all` (https://github.com/jnunemaker/flipper/pull/647)
+* Relaxed the rack-protection version to support latest (https://github.com/jnunemaker/flipper/commit/f4a41c541ccf14c535a61c6bc6fe7eeabbfc7e71).
+* Configure ActiveRecord adapter immediately upon require of flipper-active_record (https://github.com/jnunemaker/flipper/pull/652)
+
+## 0.25.0
+
+### Additions/Changes
+
+* Added a prompt in Flipper UI for the 'Delete' button to prevent accidental delete of features (https://github.com/jnunemaker/flipper/pull/625)
+* Added failsafe adapter (https://github.com/jnunemaker/flipper/pull/626)
+* Removed previously deprecated options and settings. Those upgrading from `<0.21` should upgrade to `~>0.24` first and fix any deprecation warnings when initializing Flipper. (https://github.com/jnunemaker/flipper/pull/627)
+* ActiveRecord: base class for internal models (https://github.com/jnunemaker/flipper/pull/629)
+* Remove use of `Rack::BodyProxy` in the memoizer middleware (https://github.com/jnunemaker/flipper/pull/631)
+
+## 0.24.1
+
+### Additions/Changes
+
+* flipper-api: `exclude_gates` parameter to exclude gate data in GETs (https://github.com/jnunemaker/flipper/pull/572).
+* Make it possible to disable internal memoization (https://github.com/jnunemaker/flipper/pull/612).
+* Add Flipper::Actor#hash so actors can be hash keys (https://github.com/jnunemaker/flipper/pull/616).
+* Pretty Up `rails routes` again and make rack-protection dependency less strict (https://github.com/jnunemaker/flipper/pull/619).
+* Add kwargs for method_missing using ruby 3.0 (https://github.com/jnunemaker/flipper/pull/620).
+* Relax the rack-protection dependency (https://github.com/jnunemaker/flipper/commit/c1cb9cd78140c2b09123687642558101e6e5d37d).
+
+## 0.24.0
+
+### Additions/Changes
+
+* Add Ruby 3.0 and 3.1 to the CI matrix and fix groups block arity check for ruby 3 (https://github.com/jnunemaker/flipper/pull/601)
+* Removed support for Ruby 2.5 (which was end of line 9 months ago)
+* Add (alpha) client side instrumentation of events to cloud (https://github.com/jnunemaker/flipper/pull/602)
+* Fix deprecated uses of Redis#pipelined (https://github.com/jnunemaker/flipper/pull/603). redis-rb >= 3 now required.
+* Fix Flipper UI Rack application when `Rack::Session::Pool` is used to build it (https://github.com/jnunemaker/flipper/pull/606).
+
+## 0.23.1
+
+### Additions/Changes
+
+* Relax dalli version constraint (https://github.com/jnunemaker/flipper/pull/596)
+
+### Bug Fixes
+
+* Fix railtie initialization to mount middleware after config/intializers/* (https://github.com/jnunemaker/flipper/pull/586)
+
+## 0.23.0
+
+### Additions/Changes
+
+* Allow some HTML in banner and descriptions (https://github.com/jnunemaker/flipper/pull/570).
+* Moved some cloud headers to http client (https://github.com/jnunemaker/flipper/pull/567).
+* Update flipper-ui jquery and bootstrap versions (https://github.com/jnunemaker/flipper/issues/565 and https://github.com/jnunemaker/flipper/pull/566).
+* Moved docs to www.flippercloud.io/docs (https://github.com/jnunemaker/flipper/pull/574).
+* PStore adapter now defaults to thread safe and no longer supports `.thread_safe` (https://github.com/jnunemaker/flipper/commit/4048704fefe41b716015294a19a0b94546637630).
+* Add failover adapter (https://github.com/jnunemaker/flipper/pull/584).
+* Improve http adapter error message (https://github.com/jnunemaker/flipper/pull/587).
+* Rails 7 support (mostly in https://github.com/jnunemaker/flipper/pull/592).
+
+## 0.22.2
+
+### Additions/Changes
+
+* Allow adding multiple actors at once in flipper-ui via comma separation (configurable via `Flipper::UI.configuration.actors_separator`) (https://github.com/jnunemaker/flipper/pull/556)
+
+### Bug Fixes
+
+* Fix railtie initialization to avoid altering middleware order (https://github.com/jnunemaker/flipper/pull/563)
+
+## 0.22.1
+
+### Additions/Changes
+
+* Remove Octicons and replace with a pure CSS status circle (https://github.com/jnunemaker/flipper/pull/547)
+* Rescue unique errors in AR and Sequel when setting value (https://github.com/jnunemaker/flipper/commit/87f5a98bce7baad7a27b75b5bce3256967769f27)
+* Add a Content-Security-Policy to flipper-ui (https://github.com/jnunemaker/flipper/pull/552)
+* Fix Synchronizer issue that occurs for ActiveRecord adapter (https://github.com/jnunemaker/flipper/pull/554)
+
+## 0.22.0
+
+### Additions/Changes
+
+* Enable log subscriber by default in Rails (https://github.com/jnunemaker/flipper/pull/525)
+* Remove memoizer from API and UI (https://github.com/jnunemaker/flipper/pull/527). If you are using the UI or API without configuring the default instance of Flipper, you'll need to enable memoization if you want it. For examples, see the examples/ui and examples/api directories.
+* Fix SQL reserved word use in get_all for ActiveRecord and Sequel (https://github.com/jnunemaker/flipper/pull/536).
+* Handle spaces in names gracefully in UI (https://github.com/jnunemaker/flipper/pull/541).
+
+## 0.21.0
+
+### Additions/Changes
+
+* Default to using memory adapter (https://github.com/jnunemaker/flipper/pull/501)
+* Adapters now configured on require when possible (https://github.com/jnunemaker/flipper/pull/502)
+* Added cloud recommendation to flipper-ui. Can be disabled with `Flipper::UI.configure { |config| config.cloud_recommendation = false }`. Just want to raise awareness that more is available if people want it (https://github.com/jnunemaker/flipper/pull/504)
+* Added default `flipper_id` implementation via `Flipper::Identifier` and automatically included it in ActiveRecord and Sequel models (https://github.com/jnunemaker/flipper/pull/505)
+* Deprecate superflous sync_method setting (https://github.com/jnunemaker/flipper/pull/511)
+* Flipper is now pre-configured when used with Rails. By default, it will [memoize and preload all features for each request](https://flippercloud.io/docs/optimization#memoization). (https://github.com/jnunemaker/flipper/pull/506)
+
+### Upgrading
+
+You should be able to upgrade to 0.21 without any breaking changes. However, if you want to simplify your setup, you can remove some configuration that is now handled automatically:
+
+1. Adapters are configured when on require, so unless you are using caching or other customizations, you can remove adapter configuration.
+
+    ```diff
+    # config/initializers/flipper.rb
+    - Flipper.configure do |config|
+    -   config.default { Flipper.new(Flipper::Adapters::ActiveRecord.new) }
+    - end
+    ```
+
+2. `Flipper::Middleware::Memoizer` will be enabled by default -- including preloading. **Note**: You may want to disable preloading (see below) if you have > 100 features.
+
+    ```diff
+    # config/initializers/flipper.rb
+    - Rails.configuration.middleware.use Flipper::Middleware::Memoizer,
+    -   preload: [:stats, :search, :some_feature]
+    + Rails.application.configure do
+    +   # Uncomment to configure which features to preload on all requests
+    +   # config.flipper.preload = [:stats, :search, :some_feature]
+    +   #
+    +   # Or, you may want to disable preloading entirely:
+    +   # config.flipper.preload = false
+    + end
+    ```
+
+3. `#flipper_id`, which is used to enable features for specific actors, is now defined by [Flipper::Identifier](lib/flipper/identifier.rb) on all ActiveRecord and Sequel models. You can remove your implementation if it is in the form of `ModelName;id`.
+
+4. When using `flipper-cloud`, The `Flipper::Cloud.app` webhook receiver is now mounted at `/_flipper` by default.
+
+    ```diff
+    # config/routes.rb
+    - mount Flipper::Cloud.app, at: "/_flipper"
+    ```
+
+## 0.20.4
+
+### Additions/Changes
+
+* Allow actors and time gates to deal with decimal percentages (https://github.com/jnunemaker/flipper/pull/492)
+* Change Flipper::Cloud::Middleware to receive webhooks at / in addition to /webhooks.
+* Add `write_through` option to ActiveSupportCacheStore adapter to support write-through caching (https://github.com/jnunemaker/flipper/pull/512)
+
+## 0.20.3
+
+### Additions/Changes
+
+* Changed the internal structure of how the memory adapter stores things.
+
+## 0.20.2
+
+### Additions/Changes
+
+* Http adapter now raises error when enable/disable/add/remove/clear fail.
+* Cloud adapter sends some extra info like hostname, ruby version, etc. for debugging and decision making.
+
+## 0.20.1
+
+### Additions/Changes
+
+* Just a minor tweak to cloud webhook middleware to provide more debugging information about why a hook wasn't successful.
+
+## 0.20.0
+
+### Additions/Changes
+
+* Add support for webhooks to `Flipper::Cloud` (https://github.com/jnunemaker/flipper/pull/489).
+
+## 0.19.1
+
+### Additions/Changes
+
+* Bump rack-protection version to < 2.2 (https://github.com/jnunemaker/flipper/pull/487)
+* Add memoizer_options to Flipper::Api.app (https://github.com/jnunemaker/flipper/commit/174ad4bb94046a25c432d3c53fe1ff9f5a76d838)
+
+## 0.19.0
+
+### Additions/Changes
+
+* 100% of actors is now considered conditional. Feature#on?, Feature#conditional?, Feature#state would all be affected. See https://github.com/jnunemaker/flipper/issues/463 for more.
+* Several doc updates.
+
+## 0.18.0
+
+### Additions/Changes
+
+* Add support for feature descriptions to flipper-ui (https://github.com/jnunemaker/flipper/pull/461).
+* Remove rubocop (https://github.com/jnunemaker/flipper/pull/469).
+* flipper-ui redesign (https://github.com/jnunemaker/flipper/pull/470).
+* Removed support for ruby 2.4.
+* Added support for ruby 2.7.
+* Removed support for Rails 4.x.x.
+* Removed support for customizing actors, groups, % of actors and % of time text in flipper-ui in favor of automatic and more descriptive text.
+
+## 0.17.2
+
+### Additions/Changes
+
+* Avoid errors on import when there are no features and shared specs/tests for get all with no features (https://github.com/jnunemaker/flipper/pull/441 and https://github.com/jnunemaker/flipper/pull/442)
+* ::ActiveRecord::RecordNotUnique > ActiveRecord::RecordNotUnique (https://github.com/jnunemaker/flipper/pull/444)
+* Clear gate values on enable (https://github.com/jnunemaker/flipper/pull/454)
+* Remove use of multi from redis adapter (https://github.com/jnunemaker/flipper/pull/451)
+
+## 0.17.1
+
+* Fix require in flipper-active_record (https://github.com/jnunemaker/flipper/pull/437)
+
+## 0.17.0
 
 ### Additions/Changes
 
@@ -7,7 +315,15 @@
 * Allow disabling fun (https://github.com/jnunemaker/flipper/pull/413)
 * Include thing_value in payload of Instrumented#enable and #disable (https://github.com/jnunemaker/flipper/pull/417)
 * Replace Erubis with Erubi (https://github.com/jnunemaker/flipper/pull/407)
-* Allow to customize Rack::Protection middleware list (https://github.com/jnunemaker/flipper/pull/385)
+* Allow customizing Rack::Protection middleware list (https://github.com/jnunemaker/flipper/pull/385)
+* Allow setting write_timeout for ruby 2.6+ (https://github.com/jnunemaker/flipper/pull/433)
+* Drop support for Ruby 2.1, 2.2, and 2.3 (https://github.com/jnunemaker/flipper/commit/cf58982e70de5e6963b018ceced4f36a275f5b5d)
+* Add support for Ruby 2.6 (https://github.com/jnunemaker/flipper/commit/57888311449ec81184d3d47ba9ae5cb1ad4a2f45)
+* Remove support for Rails 3.2 (https://github.com/jnunemaker/flipper/commit/177c48c4edf51d4e411e7c673e30e06d1c66fb40)
+* Add write_timeout for flipper http adapter for ruby 2.6+ (https://github.com/jnunemaker/flipper/pull/433)
+* Relax moneta version to allow for < 1.2 (https://github.com/jnunemaker/flipper/pull/434).
+* Improve active record idempotency (https://github.com/jnunemaker/flipper/pull/436).
+* Allow customizing add actor placeholder text (https://github.com/jnunemaker/flipper/commit/5faa1e9cf66b68f8227d2f8408fb448a14676c45)
 
 ## 0.16.2
 
@@ -69,7 +385,7 @@
 
 ### Additions/Changes
 
-* Added rollout adapter documentation (https://github.com/jnunemaker/flipper/pull/328).  
+* Added rollout adapter documentation (https://github.com/jnunemaker/flipper/pull/328).
 
 ### Bug Fixes
 
@@ -203,8 +519,8 @@
 
 * Added Flipper.groups and Flipper.group_names
 * Changed percentage_of_random to percentage_of_time
-* Added enable/disable convenience methods for all gates (ie: enable_group, enable_actor, enable_percentage_of_actors, enable_percentage_of_time)
-* Added value convenience methods (ie: boolean_value, groups_value, actors_value, etc.)
+* Added enable/disable convenience methods for all gates (enable_group, enable_actor, enable_percentage_of_actors, enable_percentage_of_time)
+* Added value convenience methods (boolean_value, groups_value, actors_value, etc.)
 * Added Feature#gate_values for getting typecast adapter gate values
 * Added Feature#enabled_gates and #disabled_gates for getting the gates that are enabled/disabled for the feature
 * Remove Feature#description

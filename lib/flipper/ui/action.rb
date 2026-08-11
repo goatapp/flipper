@@ -1,7 +1,9 @@
 require 'forwardable'
+require 'flipper/ui/configuration'
 require 'flipper/ui/error'
 require 'erubi'
 require 'json'
+require 'sanitize'
 
 module Flipper
   module UI
@@ -24,6 +26,34 @@ module Flipper
                                              'put'.freeze,
                                              'delete'.freeze,
                                            ]).freeze
+
+      SOURCES = {
+        bootstrap_css: {
+          src: '/css/bootstrap-4.6.0.min.css'.freeze,
+          hash: 'sha384-B0vP5xmATw1+K9KRQjQERJvTumQW0nPEzvF6L/Z6nronJ3oUOFUFpCjEUQouq2+l'.freeze
+        }.freeze,
+        jquery_js: {
+          src: '/js/jquery-3.6.0.slim.js'.freeze,
+          hash: 'sha256-HwWONEZrpuoh951cQD1ov2HUK5zA5DwJ1DNUXaM6FsY='.freeze
+        }.freeze,
+        popper_js: {
+          src: '/js/popper-1.12.9.min.js'.freeze,
+          hash: 'sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q'.freeze
+        }.freeze,
+        bootstrap_js: {
+          src: '/js/bootstrap-4.6.0.min.js'.freeze,
+          hash: 'sha384-+YQ4JLhjyBLPDQt//I+STsc9iw4uQqACwlvpslubQzn4u2UU2UFM80nGisd026JF'.freeze
+        }.freeze
+      }.freeze
+      CONTENT_SECURITY_POLICY = <<-CSP.delete("\n")
+        default-src 'none';
+        img-src 'self';
+        font-src 'self';
+        script-src 'report-sample' 'self';
+        style-src 'self' 'unsafe-inline';
+        style-src-attr 'unsafe-inline' ;
+        style-src-elem 'self';
+      CSP
 
       # Public: Call this in subclasses so the action knows its route.
       #
@@ -78,7 +108,7 @@ module Flipper
         @flipper = flipper
         @request = request
         @code = 200
-        @headers = { 'Content-Type' => 'text/plain' }
+        @headers = { 'content-type' => 'text/plain' }
         @breadcrumbs =
           if Flipper::UI.configuration.application_breadcrumb_href
             [Breadcrumb.new('App', Flipper::UI.configuration.application_breadcrumb_href)]
@@ -129,6 +159,7 @@ module Flipper
       # Returns a response.
       def view_response(name)
         header 'Content-Type', 'text/html'
+        header 'Content-Security-Policy', CONTENT_SECURITY_POLICY
         body = view_with_layout { view_without_layout name }
         halt [@code, @headers, [body]]
       end
@@ -141,7 +172,12 @@ module Flipper
       # Returns a response.
       def json_response(object)
         header 'Content-Type', 'application/json'
-        body = JSON.dump(object)
+        body = case object
+        when String
+          object
+        else
+          JSON.dump(object)
+        end
         halt [@code, @headers, [body]]
       end
 
@@ -150,7 +186,7 @@ module Flipper
       # location - The String location to set the Location header to.
       def redirect_to(location)
         status 302
-        header 'Location', "#{script_name}#{location}"
+        header 'Location', "#{script_name}#{Rack::Utils.escape_path(location)}"
         halt [@code, @headers, ['']]
       end
 
@@ -165,8 +201,10 @@ module Flipper
       #
       # name - The String name of the header.
       # value - The value of the header.
+      # Rack 3 requires lowercase response header keys. Downcasing here covers
+      # every caller, including view_response, json_response and redirect_to.
       def header(name, value)
-        @headers[name] = value
+        @headers[name.downcase] = value
       end
 
       class Breadcrumb
@@ -205,12 +243,9 @@ module Flipper
       # Private
       def view(name)
         path = views_path.join("#{name}.erb")
-
         raise "Template does not exist: #{path}" unless path.exist?
 
-        # rubocop:disable Lint/Eval
         eval(Erubi::Engine.new(path.read, escape: true).src)
-        # rubocop:enable Lint/Eval
       end
 
       # Internal: The path the app is mounted at.
@@ -239,6 +274,34 @@ module Flipper
 
       def valid_request_method?
         VALID_REQUEST_METHOD_NAMES.include?(request_method_name)
+      end
+
+      # Internal: Method to call when the UI is in read only mode and you want
+      # to inform people of that fact.
+      def read_only
+        status 403
+
+        breadcrumb 'Home', '/'
+        breadcrumb 'Features', '/features'
+        breadcrumb 'Noooooope'
+
+        halt view_response(:read_only)
+      end
+
+      def bootstrap_css
+        SOURCES[:bootstrap_css]
+      end
+
+      def bootstrap_js
+        SOURCES[:bootstrap_js]
+      end
+
+      def popper_js
+        SOURCES[:popper_js]
+      end
+
+      def jquery_js
+        SOURCES[:jquery_js]
       end
     end
   end

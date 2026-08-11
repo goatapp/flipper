@@ -8,22 +8,21 @@ module Flipper
       #
       # app - The app this middleware is included in.
       # opts - The Hash of options.
-      #        :preload_all - Boolean of whether or not to preload all features.
-      #        :preload - Array of Symbol feature names to preload.
+      #        :preload - Boolean to preload all features or Array of Symbol feature names to preload.
       #
       # Examples
       #
       #   use Flipper::Middleware::Memoizer
       #
       #   # using with preload_all features
-      #   use Flipper::Middleware::Memoizer, preload_all: true
+      #   use Flipper::Middleware::Memoizer, preload: true
       #
       #   # using with preload specific features
       #   use Flipper::Middleware::Memoizer, preload: [:stats, :search, :some_feature]
       #
       def initialize(app, opts = {})
         if opts.is_a?(Flipper::DSL) || opts.is_a?(Proc)
-          raise 'Flipper::Middleware::Memoizer no longer initializes with a flipper instance or block. Read more at: https://git.io/vSo31.' # rubocop:disable LineLength
+          raise 'Flipper::Middleware::Memoizer no longer initializes with a flipper instance or block. Read more at: https://git.io/vSo31.'
         end
 
         @app = app
@@ -34,39 +33,45 @@ module Flipper
       def call(env)
         request = Rack::Request.new(env)
 
-        if skip_memoize?(request)
-          @app.call(env)
-        else
+        if memoize?(request)
           memoized_call(env)
+        else
+          @app.call(env)
         end
       end
 
       private
 
-      def skip_memoize?(request)
-        @opts[:unless] && @opts[:unless].call(request)
+      def memoize?(request)
+        if @opts[:if]
+          @opts[:if].call(request)
+        elsif @opts[:unless]
+          !@opts[:unless].call(request)
+        else
+          true
+        end
       end
 
       def memoized_call(env)
         reset_on_body_close = false
         flipper = env.fetch(@env_key) { Flipper }
-        original = flipper.memoizing?
+
+        # Already memoizing. This instance does not need to do anything.
+        if flipper.memoizing?
+          warn "Flipper::Middleware::Memoizer appears to be running twice. Read how to resolve this at https://github.com/jnunemaker/flipper/pull/523"
+          return @app.call(env)
+        end
+
         flipper.memoize = true
 
-        flipper.preload_all if @opts[:preload_all]
-
-        if (preload = @opts[:preload])
-          flipper.preload(preload)
+        case @opts[:preload]
+        when true then flipper.preload_all
+        when Array then flipper.preload(@opts[:preload])
         end
 
-        response = @app.call(env)
-        response[2] = Rack::BodyProxy.new(response[2]) do
-          flipper.memoize = original
-        end
-        reset_on_body_close = true
-        response
+        @app.call(env)
       ensure
-        flipper.memoize = original if flipper && !reset_on_body_close
+        flipper.memoize = false if flipper
       end
     end
   end

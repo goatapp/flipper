@@ -1,7 +1,7 @@
 require "forwardable"
 
 module Flipper
-  extend self # rubocop:disable Style/ModuleFunction
+  extend self
   extend Forwardable
 
   # Private: The namespace for all instrumented events.
@@ -16,7 +16,7 @@ module Flipper
   # Public: Configure flipper.
   #
   #   Flipper.configure do |config|
-  #     config.default { ... }
+  #     config.adapter { ... }
   #   end
   #
   # Yields Flipper::Configuration instance.
@@ -64,19 +64,20 @@ module Flipper
                  :enable_percentage_of_time, :disable_percentage_of_time,
                  :time, :percentage_of_time,
                  :features, :feature, :[], :preload, :preload_all,
-                 :adapter, :add, :exist?, :remove, :import,
-                 :memoize=, :memoizing?
+                 :adapter, :add, :exist?, :remove, :import, :export,
+                 :memoize=, :memoizing?,
+                 :sync, :sync_secret # For Flipper::Cloud. Will error for OSS Flipper.
 
   # Public: Use this to register a group by name.
   #
   # name - The Symbol name of the group.
   # block - The block that should be used to determine if the group matches a
-  #         given thing.
+  #         given actor.
   #
   # Examples
   #
-  #   Flipper.register(:admins) { |thing|
-  #     thing.respond_to?(:admin?) && thing.admin?
+  #   Flipper.register(:admins) { |actor|
+  #     actor.respond_to?(:admin?) && actor.admin?
   #   }
   #
   # Returns a Flipper::Group.
@@ -151,8 +152,10 @@ require 'flipper/feature'
 require 'flipper/gate'
 require 'flipper/instrumenters/memory'
 require 'flipper/instrumenters/noop'
+require 'flipper/identifier'
 require 'flipper/middleware/memoizer'
 require 'flipper/middleware/setup_env'
+require 'flipper/poller'
 require 'flipper/registry'
 require 'flipper/type'
 require 'flipper/types/actor'
@@ -162,3 +165,6 @@ require 'flipper/types/percentage'
 require 'flipper/types/percentage_of_actors'
 require 'flipper/types/percentage_of_time'
 require 'flipper/typecast'
+require 'flipper/version'
+
+require "flipper/railtie" if defined?(Rails::Railtie)

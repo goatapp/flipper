@@ -1,5 +1,3 @@
-require 'helper'
-
 RSpec.describe Flipper::UI::Actions::Features do
   let(:token) do
     if Rack::Protection::AuthenticityToken.respond_to?(:random_token)
@@ -62,7 +60,7 @@ RSpec.describe Flipper::UI::Actions::Features do
         end
 
         it 'renders template' do
-          expect(last_response.body).to include('There aren\'t any features to configure.')
+          expect(last_response.body).to include('You have not added any features to configure yet.')
         end
       end
     end
@@ -95,11 +93,24 @@ RSpec.describe Flipper::UI::Actions::Features do
         expect(last_response.headers['Location']).to eq('/features/notifications_next')
       end
 
-      context 'feature name contains whitespace' do
+      context 'feature name has whitespace at beginning and end' do
         let(:feature_name) { '  notifications_next   ' }
 
         it 'adds feature without whitespace' do
           expect(flipper.features.map(&:key)).to include('notifications_next')
+        end
+      end
+
+      context 'feature name contains space' do
+        let(:feature_name) { 'notifications next' }
+
+        it 'adds feature with space' do
+          expect(flipper.features.map(&:key)).to include('notifications next')
+        end
+
+        it 'redirects to feature' do
+          expect(last_response.status).to be(302)
+          expect(last_response.headers['Location']).to eq('/features/notifications%20next')
         end
       end
 
@@ -111,12 +122,10 @@ RSpec.describe Flipper::UI::Actions::Features do
             expect(flipper.features.map(&:key)).to eq([])
           end
 
-          # rubocop:disable Metrics/LineLength
           it 'redirects back to feature' do
             expect(last_response.status).to be(302)
-            expect(last_response.headers['Location']).to eq('/features/new?error=%22%22+is+not+a+valid+feature+name.')
+            expect(last_response.headers['Location']).to eq('/features/new?error=%22%22%20is%20not%20a%20valid%20feature%20name.')
           end
-          # rubocop:enable Metrics/LineLength
         end
 
         context 'nil feature name' do
@@ -126,12 +135,10 @@ RSpec.describe Flipper::UI::Actions::Features do
             expect(flipper.features.map(&:key)).to eq([])
           end
 
-          # rubocop:disable Metrics/LineLength
           it 'redirects back to feature' do
             expect(last_response.status).to be(302)
-            expect(last_response.headers['Location']).to eq('/features/new?error=%22%22+is+not+a+valid+feature+name.')
+            expect(last_response.headers['Location']).to eq('/features/new?error=%22%22%20is%20not%20a%20valid%20feature%20name.')
           end
-          # rubocop:enable Metrics/LineLength
         end
       end
     end
@@ -150,6 +157,53 @@ RSpec.describe Flipper::UI::Actions::Features do
       it 'renders feature creation disabled template' do
         expect(last_response.body).to include('Feature creation is disabled.')
       end
+    end
+  end
+
+  describe 'GET /features?search=' do
+    before do
+      flipper[:alpha_widget].enable
+      flipper[:beta_gadget].enable
+    end
+
+    it 'filters features by substring' do
+      get '/features?search=widget'
+      expect(last_response.status).to be(200)
+      expect(last_response.body).to include('alpha_widget')
+      expect(last_response.body).not_to include('beta_gadget')
+    end
+
+    it 'returns all features when search is blank' do
+      get '/features?search='
+      expect(last_response.status).to be(200)
+      expect(last_response.body).to include('alpha_widget')
+      expect(last_response.body).to include('beta_gadget')
+    end
+
+    it 'treats regex metacharacters as literal text' do
+      get '/features?search=%5B'
+      expect(last_response.status).to be(200)
+      # Verify the search term round-trips in the search box
+      expect(last_response.body).to include('value="["')
+      # No feature matches '[', so both features should be absent
+      expect(last_response.body).not_to include('alpha_widget')
+      expect(last_response.body).not_to include('beta_gadget')
+    end
+
+    it 'treats invalid UTF-8 as a harmless search term' do
+      get '/features?search=%FF'
+      expect(last_response.status).to be(200)
+    end
+
+    it 'treats a truncated multibyte sequence as a harmless search term' do
+      get '/features?search=%C3%28'
+      expect(last_response.status).to be(200)
+    end
+
+    it 'keeps the search box usable when nothing matches' do
+      get '/features?search=nothingmatchesthis'
+      expect(last_response.status).to be(200)
+      expect(last_response.body).to include('name="search"')
     end
   end
 end
