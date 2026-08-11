@@ -38,4 +38,9 @@ RSpec.describe 'Flipper::UI rack conformance' do
          'rack.session' => session
     expect(last_response.status).to be(302)
   end
+
+  it 'serves an export without violating the rack spec' do
+    post '/settings/export', { authenticity_token: token }, 'rack.session' => session
+    expect(last_response.status).to be(200)
+  end
 end
