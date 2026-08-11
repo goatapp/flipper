@@ -27,13 +27,24 @@
   <div class="card">
     <div class="card-header">
       <%- if !Flipper::UI.configuration.read_only && Flipper::UI.configuration.feature_creation_enabled -%>
-        <div class="float-right">
+        <div class="float-right ml-2">
           <a class="btn btn-primary btn-sm" href="<%= script_name %>/features/new">Add Feature</a>
         </div>
       <%- end -%>
+      <form class="form-inline float-right" action="<%= script_name %>/features" method="get">
+        <div class="input-group input-group-sm">
+          <input name="search" type="text" class="form-control" placeholder="Search by name" value="<%= @search %>">
+          <div class="input-group-append">
+            <button type="submit" class="btn btn-secondary btn-sm">Search</button>
+          </div>
+        </div>
+      </form>
       <h4 class="m-0">Features</h4>
     </div>
     <div class="card-body py-0">
+      <% if @features.empty? %>
+        <p class="text-muted py-3 mb-0">No features match <strong><%= @search %></strong>.</p>
+      <% end %>
       <% @features.each do |feature| %>
         <div class="feature row align-items-center mt-0 px-3 border-bottom">
           <div class="col-1 col-md-auto">

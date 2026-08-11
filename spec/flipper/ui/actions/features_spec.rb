@@ -159,4 +159,36 @@ RSpec.describe Flipper::UI::Actions::Features do
       end
     end
   end
+
+  describe 'GET /features?search=' do
+    before do
+      flipper[:alpha_widget].enable
+      flipper[:beta_gadget].enable
+    end
+
+    it 'filters features by substring' do
+      get '/features?search=widget'
+      expect(last_response.status).to be(200)
+      expect(last_response.body).to include('alpha_widget')
+      expect(last_response.body).not_to include('beta_gadget')
+    end
+
+    it 'returns all features when search is blank' do
+      get '/features?search='
+      expect(last_response.status).to be(200)
+      expect(last_response.body).to include('alpha_widget')
+      expect(last_response.body).to include('beta_gadget')
+    end
+
+    it 'treats regex metacharacters as literal text' do
+      get '/features?search=%5B'
+      expect(last_response.status).to be(200)
+    end
+
+    it 'keeps the search box usable when nothing matches' do
+      get '/features?search=nothingmatchesthis'
+      expect(last_response.status).to be(200)
+      expect(last_response.body).to include('name="search"')
+    end
+  end
 end
