@@ -62,3 +62,19 @@ jobs:
           bundler-cache: true # 'bundle install' and cache gems
       - name: Run Rake with Rails ${{ matrix.rails }}
         run: bundle exec rake
+  ui-rack3:
+    name: flipper-ui on ruby 3.4 with rack 3
+    runs-on: ubuntu-latest
+    env:
+      RACK_VERSION: '3.2'
+      CI: true
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v3
+      - name: Set up Ruby 3.4
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+      - name: Run flipper-ui specs
+        run: bundle exec rake spec:ui
