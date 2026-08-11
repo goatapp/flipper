@@ -10,7 +10,8 @@ module Flipper
 
         def get
           @page_title = 'Features'
-          @search = params['search'].to_s
+          # params can carry invalid UTF-8; scrub before any regex or comparison touches it
+          @search = params['search'].to_s.scrub
           @search = nil if Util.blank?(@search)
 
           keys = flipper.features.map(&:key)

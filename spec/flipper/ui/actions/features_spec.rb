@@ -183,6 +183,21 @@ RSpec.describe Flipper::UI::Actions::Features do
     it 'treats regex metacharacters as literal text' do
       get '/features?search=%5B'
       expect(last_response.status).to be(200)
+      # Verify the search term round-trips in the search box
+      expect(last_response.body).to include('value="["')
+      # No feature matches '[', so both features should be absent
+      expect(last_response.body).not_to include('alpha_widget')
+      expect(last_response.body).not_to include('beta_gadget')
+    end
+
+    it 'treats invalid UTF-8 as a harmless search term' do
+      get '/features?search=%FF'
+      expect(last_response.status).to be(200)
+    end
+
+    it 'treats a truncated multibyte sequence as a harmless search term' do
+      get '/features?search=%C3%28'
+      expect(last_response.status).to be(200)
     end
 
     it 'keeps the search box usable when nothing matches' do
